@@ -4,13 +4,6 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>מנהל הזמנות | שקיות קוקטייל</title>
-  <!-- PWA -->
-  <link rel="manifest" href="manifest.json">
-  <meta name="theme-color" content="#7c3aed">
-  <meta name="apple-mobile-web-app-capable" content="yes">
-  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-  <meta name="apple-mobile-web-app-title" content="שקיות קוקטייל">
-  <link rel="apple-touch-icon" href="icon.svg">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link href="https://fonts.googleapis.com/css2?family=Heebo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
 
@@ -501,7 +494,7 @@ function Dashboard({orders, settings, onUpdateSettings, onAdd, onEdit}) {
     const now=new Date(); now.setHours(0,0,0,0);
     const cut=new Date(now.getTime()+60*864e5);
     return orders.filter(o=>{if(!o.eventDate)return false;const d=new Date(o.eventDate);return d>=now&&d<=cut;})
-      .sort((a,b)=>new Date(a.eventDate)-new Date(b.eventDate)).slice(0,5);
+      .sort((a,b)=>new Date(a.eventDate)-new Date(b.eventDate));
   },[orders]);
 
   const recent = useMemo(()=>[...orders].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,6),[orders]);
@@ -960,13 +953,6 @@ function App() {
 }
 
 ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
-</script>
-<script>
-  if ('serviceWorker' in navigator) {
-    window.addEventListener('load', () => {
-      navigator.serviceWorker.register('sw.js');
-    });
-  }
 </script>
 </body>
 </html>

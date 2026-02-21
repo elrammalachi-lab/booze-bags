@@ -494,7 +494,7 @@ function Dashboard({orders, settings, onUpdateSettings, onAdd, onEdit}) {
     const now=new Date(); now.setHours(0,0,0,0);
     const cut=new Date(now.getTime()+60*864e5);
     return orders.filter(o=>{if(!o.eventDate)return false;const d=new Date(o.eventDate);return d>=now&&d<=cut;})
-      .sort((a,b)=>new Date(a.eventDate)-new Date(b.eventDate)).slice(0,5);
+      .sort((a,b)=>new Date(a.eventDate)-new Date(b.eventDate));
   },[orders]);
 
   const recent = useMemo(()=>[...orders].sort((a,b)=>new Date(b.createdAt)-new Date(a.createdAt)).slice(0,6),[orders]);
