@@ -319,6 +319,8 @@
     .team-tag { display:inline-flex; align-items:center; padding:2px 9px; border-radius:var(--rfull); font-size:11px; font-weight:700; white-space:nowrap; }
     .tag-malachi { background:#fce7f3; color:#9d174d; }
     .tag-yotam { background:#dbeafe; color:#1e3a8a; }
+    .tag-tal { background:#d1fae5; color:#065f46; }
+    .tag-maya { background:#fef3c7; color:#92400e; }
     .tag-none { background:var(--gray-100); color:var(--gray-400); }
 
     /* Leaderboard */
@@ -370,7 +372,7 @@ const STATUSES = [
   { id: 'delivered', label: 'הגיע ללקוח',           icon: '🚚' },
   { id: 'completed', label: 'הושלם',                icon: '✅' },
 ];
-const TEAM = ['מלאכי', 'יותם'];
+const TEAM = ['מלאכי', 'יותם', 'טל', 'מאיה'];
 const DOW_HE = ['א','ב','ג','ד','ה','ו','ש'];
 
 // ── Helpers ──
@@ -390,9 +392,10 @@ const StatusLabel = {
   open:'פתוחה','in-progress':'בטיפול',closed:'סגורה'
 };
 function Badge({status}) { return <span className={BadgeClass[status]||'badge'}>{StatusLabel[status]||status}</span>; }
+const TEAM_TAG_CLASS = { 'מלאכי':'tag-malachi', 'יותם':'tag-yotam', 'טל':'tag-tal', 'מאיה':'tag-maya' };
 function TeamTag({who}) {
   if (!who) return <span className="team-tag tag-none">—</span>;
-  return <span className={`team-tag ${who==='מלאכי'?'tag-malachi':'tag-yotam'}`}>{who}</span>;
+  return <span className={`team-tag ${TEAM_TAG_CLASS[who]||'tag-none'}`}>{who}</span>;
 }
 
 // ── P&L Card ──
@@ -606,7 +609,8 @@ function TransactionsView({transactions, onAdd, onDelete}) {
       income:  transactions.filter(t=>t.who===name&&t.type==='income').reduce((a,t)=>a+(Number(t.amount)||0),0),
       expense: transactions.filter(t=>t.who===name&&t.type==='expense').reduce((a,t)=>a+(Number(t.amount)||0),0),
     });
-    return { income, expense, net: income-expense, malachi: byPerson('מלאכי'), yotam: byPerson('יותם') };
+    const perPerson = TEAM.reduce((acc,name)=>({...acc,[name]:byPerson(name)}),{});
+    return { income, expense, net: income-expense, perPerson };
   }, [transactions]);
 
   const handleSubmit = (e) => {
@@ -630,17 +634,18 @@ function TransactionsView({transactions, onAdd, onDelete}) {
       </div>
 
       {/* Per-person summary */}
-      <div className="lb-grid">
-        {[{name:'מלאכי', cls:'lb-malachi', d:totals.malachi}, {name:'יותם', cls:'lb-yotam', d:totals.yotam}].map(p=>(
-          <div key={p.name} className={`lb-card ${p.cls}`}>
-            <div style={{fontSize:16,fontWeight:800,marginBottom:12}}>{p.name}</div>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:16}}>
+        {TEAM.map(name=>{const d=totals.perPerson[name]||{income:0,expense:0};return(
+          <div key={name} className="lb-card"
+            style={{borderTopColor: name==='מלאכי'?'#db2777':name==='יותם'?'#2563eb':name==='טל'?'#059669':'#d97706', borderTopWidth:4, borderTopStyle:'solid'}}>
+            <div style={{fontSize:16,fontWeight:800,marginBottom:12}}>{name}</div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
-              <div><div style={{fontSize:11,color:'var(--gray-400)',fontWeight:700,textTransform:'uppercase',marginBottom:4}}>הכניס</div><div style={{fontSize:20,fontWeight:800,color:'var(--green)'}}>{fmt(p.d.income)}</div></div>
-              <div><div style={{fontSize:11,color:'var(--gray-400)',fontWeight:700,textTransform:'uppercase',marginBottom:4}}>הוציא</div><div style={{fontSize:20,fontWeight:800,color:'var(--red)'}}>{fmt(p.d.expense)}</div></div>
-              <div><div style={{fontSize:11,color:'var(--gray-400)',fontWeight:700,textTransform:'uppercase',marginBottom:4}}>מאזן</div><div style={{fontSize:20,fontWeight:800,color:(p.d.income-p.d.expense)>=0?'var(--green)':'var(--red)'}}>{fmt(p.d.income-p.d.expense)}</div></div>
+              <div><div style={{fontSize:11,color:'var(--gray-400)',fontWeight:700,textTransform:'uppercase',marginBottom:4}}>הכניס</div><div style={{fontSize:18,fontWeight:800,color:'var(--green)'}}>{fmt(d.income)}</div></div>
+              <div><div style={{fontSize:11,color:'var(--gray-400)',fontWeight:700,textTransform:'uppercase',marginBottom:4}}>הוציא</div><div style={{fontSize:18,fontWeight:800,color:'var(--red)'}}>{fmt(d.expense)}</div></div>
+              <div><div style={{fontSize:11,color:'var(--gray-400)',fontWeight:700,textTransform:'uppercase',marginBottom:4}}>מאזן</div><div style={{fontSize:18,fontWeight:800,color:(d.income-d.expense)>=0?'var(--green)':'var(--red)'}}>{fmt(d.income-d.expense)}</div></div>
             </div>
           </div>
-        ))}
+        );})}
       </div>
 
       {/* Transactions list */}
@@ -723,10 +728,7 @@ function Dashboard({orders, settings, onUpdateSettings, onAdd, onEdit}) {
     statusCounts.completed+= orders.filter(o=>o.status==='closed').length;
     const margin = rev>0 ? Math.round(netProfit/rev*100) : 0;
     // Team stats
-    const teamCounts = {
-      'מלאכי': orders.filter(o=>o.closedBy==='מלאכי').length,
-      'יותם':  orders.filter(o=>o.closedBy==='יותם').length,
-    };
+    const teamCounts = TEAM.reduce((acc,name)=>({...acc,[name]:orders.filter(o=>o.closedBy===name).length}),{});
     return {total:orders.length,rev,netProfit,bags,statusCounts,margin,teamCounts};
   },[orders, settings]);
 
@@ -766,15 +768,16 @@ function Dashboard({orders, settings, onUpdateSettings, onAdd, onEdit}) {
       </div>
 
       {/* Team leaderboard */}
-      <div className="lb-grid">
-        {[{name:'מלאכי',cls:'lb-malachi'},{name:'יותם',cls:'lb-yotam'}].map(p=>(
-          <div key={p.name} className={`lb-card ${p.cls}`}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:16}}>
+        {TEAM.map(name=>(
+          <div key={name} className={`lb-card lb-${name==='מלאכי'?'malachi':name==='יותם'?'yotam':name==='טל'?'tal':'maya'}`}
+            style={{borderTopColor: name==='מלאכי'?'#db2777':name==='יותם'?'#2563eb':name==='טל'?'#059669':'#d97706'}}>
             <div style={{fontSize:13,color:'var(--gray-400)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.5px',marginBottom:8}}>🏆 סגר</div>
             <div style={{display:'flex',alignItems:'baseline',gap:8}}>
-              <span style={{fontSize:36,fontWeight:800,color:'var(--gray-900)'}}>{s.teamCounts[p.name]||0}</span>
+              <span style={{fontSize:36,fontWeight:800,color:'var(--gray-900)'}}>{s.teamCounts[name]||0}</span>
               <span style={{fontSize:13,color:'var(--gray-500)',fontWeight:600}}>הזמנות</span>
             </div>
-            <div style={{fontSize:16,fontWeight:700,color:'var(--gray-700)',marginTop:4}}>{p.name}</div>
+            <div style={{fontSize:16,fontWeight:700,color:'var(--gray-700)',marginTop:4}}>{name}</div>
           </div>
         ))}
       </div>
