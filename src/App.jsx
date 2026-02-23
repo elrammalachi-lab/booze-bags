@@ -1,212 +1,281 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import Dashboard from './components/Dashboard'
-import OrdersTable from './components/OrdersTable'
-import OrderForm from './components/OrderForm'
-import MonthlyStats from './components/MonthlyStats'
+import ProjectsList from './components/ProjectsList'
+import ProjectDetail from './components/ProjectDetail'
+import ProjectForm from './components/ProjectForm'
 
-const STORAGE_KEY = 'cocktail_bag_orders_v1'
+const STORAGE_KEY = 'urban-renewal-pm-v1'
 
-const DEMO_ORDERS = [
-  {
-    id: 'demo_1',
-    customerName: 'שרה לוי',
-    phone: '050-1234567',
-    eventDate: '2026-03-15',
-    eventType: 'חתונה',
-    bagCount: 300,
-    packagePrice: 4500,
-    extras: 500,
-    productionCost: 2800,
-    status: 'closed',
-    notes: 'שקיות עם ריבון זהב, לקוחה מאוד מרוצה',
-    createdAt: '2026-02-01T10:00:00.000Z',
-  },
-  {
-    id: 'demo_2',
-    customerName: 'יוסי כהן',
-    phone: '052-9876543',
-    eventDate: '2026-04-20',
-    eventType: 'בר מצווה',
-    bagCount: 200,
-    packagePrice: 3200,
-    extras: 0,
-    productionCost: 1900,
-    status: 'in-progress',
-    notes: '',
-    createdAt: '2026-02-05T14:30:00.000Z',
-  },
-  {
-    id: 'demo_3',
-    customerName: 'רחל אברהם',
-    phone: '054-5556789',
-    eventDate: '2026-05-10',
-    eventType: 'יום הולדת',
-    bagCount: 400,
-    packagePrice: 5800,
-    extras: 800,
-    productionCost: 3500,
-    status: 'open',
-    notes: 'לקוחה ביקשה צבע תכלת לשקיות',
-    createdAt: '2026-02-10T09:00:00.000Z',
-  },
-  {
-    id: 'demo_4',
-    customerName: 'דוד מזרחי',
-    phone: '058-3334455',
-    eventDate: '2026-03-28',
-    eventType: 'אירוע חברה',
-    bagCount: 500,
-    packagePrice: 7200,
-    extras: 1200,
-    productionCost: 4800,
-    status: 'open',
-    notes: 'לוגו חברה על השקיות',
-    createdAt: '2026-02-12T16:00:00.000Z',
-  },
-]
-
-function App() {
-  const [orders, setOrders] = useState(() => {
-    try {
-      const stored = localStorage.getItem(STORAGE_KEY)
-      if (stored) return JSON.parse(stored)
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(DEMO_ORDERS))
-      return DEMO_ORDERS
-    } catch {
-      return []
+const SAMPLE_DATA = {
+  projects: [
+    {
+      id: 'proj_1',
+      name: 'רחוב הרצל 42',
+      address: 'הרצל 42',
+      city: 'תל אביב',
+      type: 'תמ"א 38/1',
+      status: 'היתרים',
+      startDate: '2023-06-01',
+      expectedEndDate: '2025-12-31',
+      totalUnits: 18,
+      newUnits: 4,
+      floors: 6,
+      developer: 'אינוביישן נדל"ן',
+      contractor: 'א.ב. בנייה בע"מ',
+      description: 'חיזוק מבנה ותוספת קומות',
+      notes: '',
+      createdAt: '2023-06-01T10:00:00.000Z'
+    },
+    {
+      id: 'proj_2',
+      name: 'שכונת נווה שאנן',
+      address: 'בן יהודה 7-15',
+      city: 'חיפה',
+      type: 'פינוי-בינוי',
+      status: 'תכנון',
+      startDate: '2024-01-15',
+      expectedEndDate: '2028-06-30',
+      totalUnits: 60,
+      newUnits: 120,
+      floors: 15,
+      developer: 'גרין גרופ',
+      contractor: '',
+      description: 'פינוי 3 בניינים ישנים ובניית מגדל מגורים חדש',
+      notes: 'בשלב תכנון עם העירייה',
+      createdAt: '2024-01-15T09:00:00.000Z'
     }
-  })
+  ],
+  tenants: [
+    {
+      id: 'ten_1',
+      projectId: 'proj_1',
+      name: 'משפחת כהן',
+      phone: '054-1234567',
+      email: 'cohen@mail.com',
+      apartment: '3א',
+      floor: '1',
+      agreementStatus: 'חתם',
+      signedDate: '2023-09-01',
+      notes: 'הסכים לאחר מו"מ'
+    },
+    {
+      id: 'ten_2',
+      projectId: 'proj_1',
+      name: 'משפחת לוי',
+      phone: '052-9876543',
+      email: '',
+      apartment: '5ב',
+      floor: '2',
+      agreementStatus: 'במו"מ',
+      signedDate: '',
+      notes: 'מעוניין בהחלפת דירה'
+    },
+    {
+      id: 'ten_3',
+      projectId: 'proj_1',
+      name: 'ד"ר אבי שפירא',
+      phone: '050-1112233',
+      email: 'avi@example.com',
+      apartment: '8ג',
+      floor: '3',
+      agreementStatus: 'ממתין',
+      signedDate: '',
+      notes: ''
+    }
+  ],
+  tasks: [
+    {
+      id: 'task_1',
+      projectId: 'proj_1',
+      title: 'הגשת בקשה להיתר בנייה',
+      description: 'להגיש את כל המסמכים לעירייה',
+      dueDate: '2025-03-15',
+      status: 'בתהליך',
+      priority: 'גבוה',
+      category: 'היתרים',
+      createdAt: '2025-01-10T08:00:00.000Z'
+    },
+    {
+      id: 'task_2',
+      projectId: 'proj_1',
+      title: 'פגישה עם דייר שפירא',
+      description: 'לקיים פגישה לגבי תנאי ההסכם',
+      dueDate: '2025-02-28',
+      status: 'פתוח',
+      priority: 'בינוני',
+      category: 'דיירים',
+      createdAt: '2025-01-15T10:00:00.000Z'
+    },
+    {
+      id: 'task_3',
+      projectId: 'proj_2',
+      title: 'הכנת תוכנית לוועדה המקומית',
+      description: 'הכנת מצגת לישיבת הוועדה',
+      dueDate: '2025-04-01',
+      status: 'פתוח',
+      priority: 'דחוף',
+      category: 'תכנון',
+      createdAt: '2025-01-20T11:00:00.000Z'
+    }
+  ]
+}
 
-  const [activeTab, setActiveTab] = useState('dashboard')
-  const [showForm, setShowForm] = useState(false)
-  const [editingOrder, setEditingOrder] = useState(null)
-  const [filters, setFilters] = useState({ month: '', status: '' })
+function loadData() {
+  try {
+    const saved = localStorage.getItem(STORAGE_KEY)
+    if (saved) return JSON.parse(saved)
+  } catch {}
+  return SAMPLE_DATA
+}
+
+export default function App() {
+  const [data, setData] = useState(loadData)
+  const [view, setView] = useState('dashboard')
+  const [selectedProjectId, setSelectedProjectId] = useState(null)
+  const [showProjectForm, setShowProjectForm] = useState(false)
+  const [editingProject, setEditingProject] = useState(null)
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(orders))
-  }, [orders])
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data))
+    } catch {}
+  }, [data])
 
-  const filteredOrders = useMemo(() => {
-    return orders
-      .filter((order) => {
-        if (filters.month) {
-          const orderMonth = order.eventDate?.substring(0, 7)
-          if (orderMonth !== filters.month) return false
-        }
-        if (filters.status && order.status !== filters.status) return false
-        return true
-      })
-      .sort((a, b) => {
-        if (!a.eventDate) return 1
-        if (!b.eventDate) return -1
-        return new Date(a.eventDate) - new Date(b.eventDate)
-      })
-  }, [orders, filters])
+  const updateData = (updater) => {
+    setData(prev => updater(prev))
+  }
 
-  const handleSave = (data) => {
-    if (editingOrder) {
-      setOrders((prev) =>
-        prev.map((o) =>
-          o.id === editingOrder.id
-            ? { ...data, id: editingOrder.id, createdAt: editingOrder.createdAt }
-            : o
-        )
-      )
-    } else {
-      setOrders((prev) => [
+  const handleSaveProject = (projectData) => {
+    if (editingProject) {
+      updateData(prev => ({
         ...prev,
-        {
-          ...data,
-          id: `order_${Date.now()}`,
-          createdAt: new Date().toISOString(),
-        },
-      ])
+        projects: prev.projects.map(p => p.id === projectData.id ? projectData : p)
+      }))
+    } else {
+      updateData(prev => ({
+        ...prev,
+        projects: [...prev.projects, {
+          ...projectData,
+          id: 'proj_' + Date.now(),
+          createdAt: new Date().toISOString()
+        }]
+      }))
     }
-    setShowForm(false)
-    setEditingOrder(null)
+    setShowProjectForm(false)
+    setEditingProject(null)
   }
 
-  const handleEdit = (order) => {
-    setEditingOrder(order)
-    setShowForm(true)
+  const handleDeleteProject = (projectId) => {
+    updateData(prev => ({
+      ...prev,
+      projects: prev.projects.filter(p => p.id !== projectId),
+      tenants: prev.tenants.filter(t => t.projectId !== projectId),
+      tasks: prev.tasks.filter(t => t.projectId !== projectId)
+    }))
+    setView('projects')
+    setSelectedProjectId(null)
   }
 
-  const handleDelete = (id) => {
-    if (window.confirm('האם למחוק את ההזמנה? פעולה זו אינה הפיכה.')) {
-      setOrders((prev) => prev.filter((o) => o.id !== id))
-    }
+  const openProject = (projectId) => {
+    setSelectedProjectId(projectId)
+    setView('project-detail')
   }
 
-  const handleAddNew = () => {
-    setEditingOrder(null)
-    setShowForm(true)
+  const openEditProject = (project) => {
+    setEditingProject(project)
+    setShowProjectForm(true)
   }
 
-  const handleCloseForm = () => {
-    setShowForm(false)
-    setEditingOrder(null)
+  const openNewProject = () => {
+    setEditingProject(null)
+    setShowProjectForm(true)
   }
 
-  const TABS = [
-    { id: 'dashboard', label: '📊  דשבורד' },
-    { id: 'orders', label: '📋  הזמנות' },
-    { id: 'monthly', label: '📅  סיכום חודשי' },
-  ]
+  const selectedProject = data.projects.find(p => p.id === selectedProjectId)
 
   return (
-    <div className="app-container">
+    <div className="app">
       <header className="header">
         <div className="header-content">
-          <div className="header-logo">
-            <span className="header-icon">🍹</span>
+          <div className="header-brand" onClick={() => setView('dashboard')} style={{ cursor: 'pointer' }}>
+            <div className="header-logo">🏗️</div>
             <div>
-              <h1 className="header-title">מנהל הזמנות</h1>
-              <p className="header-subtitle">שקיות קוקטייל לאירועים</p>
+              <h1 className="header-title">מנהל פרויקטים</h1>
+              <p className="header-subtitle">התחדשות עירונית</p>
             </div>
           </div>
-          <button className="btn btn-primary" onClick={handleAddNew}>
-            + הזמנה חדשה
+          <nav className="header-nav">
+            <button
+              className={`nav-btn ${view === 'dashboard' ? 'active' : ''}`}
+              onClick={() => setView('dashboard')}
+            >
+              📊 דשבורד
+            </button>
+            <button
+              className={`nav-btn ${view === 'projects' || view === 'project-detail' ? 'active' : ''}`}
+              onClick={() => setView('projects')}
+            >
+              🏗️ פרויקטים
+            </button>
+          </nav>
+          <button className="btn-primary" onClick={openNewProject}>
+            + פרויקט חדש
           </button>
         </div>
       </header>
 
-      <nav className="tab-nav">
-        <div className="tab-nav-content">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              {tab.label}
-            </button>
-          ))}
-        </div>
-      </nav>
-
       <main className="main-content">
-        {activeTab === 'dashboard' && (
-          <Dashboard orders={orders} onAddNew={handleAddNew} onEdit={handleEdit} />
-        )}
-        {activeTab === 'orders' && (
-          <OrdersTable
-            orders={filteredOrders}
-            allOrders={orders}
-            filters={filters}
-            onFilterChange={setFilters}
-            onEdit={handleEdit}
-            onDelete={handleDelete}
-            onAddNew={handleAddNew}
+        {view === 'dashboard' && (
+          <Dashboard
+            data={data}
+            onProjectClick={openProject}
+            onAddProject={openNewProject}
           />
         )}
-        {activeTab === 'monthly' && <MonthlyStats orders={orders} />}
+        {view === 'projects' && (
+          <ProjectsList
+            projects={data.projects}
+            tenants={data.tenants}
+            tasks={data.tasks}
+            onProjectClick={openProject}
+            onEditProject={openEditProject}
+            onDeleteProject={handleDeleteProject}
+            onAddProject={openNewProject}
+          />
+        )}
+        {view === 'project-detail' && selectedProject && (
+          <ProjectDetail
+            project={selectedProject}
+            tenants={data.tenants.filter(t => t.projectId === selectedProjectId)}
+            tasks={data.tasks.filter(t => t.projectId === selectedProjectId)}
+            onBack={() => setView('projects')}
+            onEditProject={openEditProject}
+            onDeleteProject={handleDeleteProject}
+            onUpdateTenants={(tenants) => updateData(prev => ({
+              ...prev,
+              tenants: [
+                ...prev.tenants.filter(t => t.projectId !== selectedProjectId),
+                ...tenants
+              ]
+            }))}
+            onUpdateTasks={(tasks) => updateData(prev => ({
+              ...prev,
+              tasks: [
+                ...prev.tasks.filter(t => t.projectId !== selectedProjectId),
+                ...tasks
+              ]
+            }))}
+          />
+        )}
       </main>
 
-      {showForm && (
-        <OrderForm order={editingOrder} onSave={handleSave} onClose={handleCloseForm} />
+      {showProjectForm && (
+        <ProjectForm
+          project={editingProject}
+          onSave={handleSaveProject}
+          onClose={() => { setShowProjectForm(false); setEditingProject(null) }}
+        />
       )}
     </div>
   )
 }
-
-export default App
