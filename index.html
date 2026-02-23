@@ -393,6 +393,7 @@ const DELIVERY_STATUSES = ['ממתין', 'בדרך', 'הגיע', 'ביטל'];
 const DELIVERY_STATUS_CLASS = { 'ממתין':'del-waiting', 'בדרך':'del-way', 'הגיע':'del-arrived', 'ביטל':'del-cancelled' };
 const BAG_EMPTY = {bagNum:1, phraseA:'', imageNumA:'', namesB:'', cocktailB:'', quantity:100, needsDate:false};
 const TEAM = ['מלאכי', 'יותם'];
+const TEAM_CLOSER = ['מלאכי', 'יותם', 'טל', 'מאיה'];
 const DOW_HE = ['א','ב','ג','ד','ה','ו','ש'];
 
 // ── Helpers ──
@@ -845,14 +846,99 @@ function TransactionsView({transactions, onAdd, onDelete}) {
   );
 }
 
+// ── Bag Modal ──
+function BagModal({bag, bagIdx, orderId, orders, onSave, onClose}) {
+  const isEdit = !!bag;
+  const [f, setF] = useState(isEdit ? {
+    orderId: orderId||'',
+    bagNum: bag.bagNum||1,
+    phraseA: bag.phraseA||'',
+    imageNumA: bag.imageNumA||'',
+    namesB: bag.namesB||'',
+    cocktailB: bag.cocktailB||'',
+    quantity: bag.quantity||100,
+    needsDate: !!bag.needsDate,
+  } : {
+    orderId: orderId||'',
+    bagNum: 1, phraseA: '', imageNumA: '', namesB: '', cocktailB: '', quantity: 100, needsDate: false,
+  });
+  const set = (k,v) => setF(p=>({...p,[k]:v}));
+
+  const handleSubmit = (e) => {
+    e.preventDefault();
+    if (!f.orderId) return;
+    const bagData = {
+      bagNum: Number(f.bagNum)||1,
+      phraseA: f.phraseA.trim(),
+      imageNumA: f.imageNumA.trim(),
+      namesB: f.namesB.trim(),
+      cocktailB: f.cocktailB||'',
+      quantity: Number(f.quantity)||100,
+      needsDate: !!f.needsDate,
+    };
+    onSave(f.orderId, bagIdx, bagData, isEdit);
+  };
+
+  const selectedOrder = orders.find(o=>o.id===f.orderId);
+
+  return (
+    <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
+      <div className="modal">
+        <div className="modal-hdr">
+          <h2 className="modal-title">{isEdit?'✏️ עריכת שקית':'➕ הוספת שקית'}</h2>
+          <button className="modal-x" onClick={onClose}>✕</button>
+        </div>
+        <form onSubmit={handleSubmit}>
+          <div className="form-grid">
+            <div className="fgroup" style={{gridColumn:'1/-1'}}>
+              <label className="flbl">הזמנה</label>
+              {isEdit
+                ? <input className="finp" value={selectedOrder?`${selectedOrder.customerName} — ${fmtDate(selectedOrder.eventDate)}`:f.orderId} readOnly style={{background:'var(--gray-50)',color:'var(--gray-500)'}}/>
+                : <select className="fsel" value={f.orderId} onChange={e=>set('orderId',e.target.value)} required>
+                    <option value="">— בחר הזמנה —</option>
+                    {[...orders].sort((a,b)=>(a.customerName||'').localeCompare(b.customerName||'')).map(o=><option key={o.id} value={o.id}>{o.customerName} — {fmtDate(o.eventDate)}</option>)}
+                  </select>
+              }
+            </div>
+            <div className="fgroup"><label className="flbl">מספר שקית</label><input className="finp" type="number" min="1" value={f.bagNum} onChange={e=>set('bagNum',e.target.value)}/></div>
+            <div className="fgroup"><label className="flbl">כמות</label><input className="finp" type="number" min="1" value={f.quantity} onChange={e=>set('quantity',e.target.value)}/></div>
+            <div className="fgroup" style={{gridColumn:'1/-1'}}><label className="flbl">צד א — מלל</label><input className="finp" placeholder="טקסט שיופיע על השקית" value={f.phraseA} onChange={e=>set('phraseA',e.target.value)}/></div>
+            <div className="fgroup"><label className="flbl">מספר תמונה</label><input className="finp" placeholder="למשל: 14" value={f.imageNumA} onChange={e=>set('imageNumA',e.target.value)}/></div>
+            <div className="fgroup"><label className="flbl">קוקטייל</label>
+              <select className="fsel" value={f.cocktailB} onChange={e=>set('cocktailB',e.target.value)}>
+                <option value="">— ללא —</option>
+                {COCKTAIL_TYPES.map(c=><option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div className="fgroup" style={{gridColumn:'1/-1'}}><label className="flbl">צד ב — שמות</label><textarea className="ftxt" rows={3} placeholder="שמות האורחים / טקסט נוסף" value={f.namesB} onChange={e=>set('namesB',e.target.value)}/></div>
+            <div className="fgroup" style={{gridColumn:'1/-1'}}>
+              <label style={{display:'flex',alignItems:'center',gap:8,cursor:'pointer'}}>
+                <input type="checkbox" checked={f.needsDate} onChange={e=>set('needsDate',e.target.checked)}/>
+                <span className="flbl" style={{margin:0}}>צריך תאריך?</span>
+              </label>
+            </div>
+          </div>
+          <div className="form-actions">
+            <button type="button" className="btn btn-gray" onClick={onClose}>ביטול</button>
+            <button type="submit" className="btn btn-pri">💾 שמור</button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
 // ── Bags View ──
-function BagsView({orders}) {
+function BagsView({orders, onUpdateBag, onAddBag}) {
   const [filter, setFilter] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [editingBag, setEditingBag] = useState(null);   // {bag, bagIdx, orderId}
+
   const allBags = useMemo(() => {
     const result = [];
     orders.forEach(order => {
       const bags = order.bags ? (Array.isArray(order.bags) ? order.bags : Object.values(order.bags)) : [];
-      bags.forEach(bag => result.push({...bag, customerName:order.customerName, eventDate:order.eventDate, orderId:order.id}));
+      bags.forEach((bag, idx) => result.push({...bag, customerName:order.customerName, eventDate:order.eventDate, orderId:order.id, _bagIdx:idx}));
     });
     return result;
   }, [orders]);
@@ -873,18 +959,31 @@ function BagsView({orders}) {
 
   const customers = useMemo(()=>[...new Set(allBags.map(b=>b.customerName).filter(Boolean))],[allBags]);
 
+  const openAdd = () => { setEditingBag(null); setShowModal(true); };
+  const openEdit = (bag) => { setEditingBag({bag, bagIdx:bag._bagIdx, orderId:bag.orderId}); setShowModal(true); };
+  const handleClose = () => { setShowModal(false); setEditingBag(null); };
+
+  const handleSave = (orderId, bagIdx, bagData, isEdit) => {
+    if (isEdit) onUpdateBag(orderId, bagIdx, bagData);
+    else onAddBag(orderId, bagData);
+    handleClose();
+  };
+
   return (
     <div style={{display:'flex',flexDirection:'column',gap:16}}>
       {cocktailStats.length>0 && (
         <div className="card">
           <div className="card-hdr"><span className="card-title">📊 סיכום לפי קוקטייל</span></div>
           <div style={{display:'flex',flexWrap:'wrap',gap:10,padding:'12px 16px'}}>
-            {cocktailStats.map(([name,s])=>(
-              <div key={name} style={{background:'var(--gray-50)',border:'1px solid var(--gray-200)',borderRadius:10,padding:'10px 16px',minWidth:150}}>
-                <div style={{fontWeight:700,fontSize:13}}>{name}</div>
-                <div style={{fontSize:12,color:'var(--gray-500)',marginTop:3}}>{s.bags} שקיות · {s.count} עיצובים</div>
-              </div>
-            ))}
+            {cocktailStats.map(([name,s])=>{
+              const cidx=COCKTAIL_TYPES.findIndex(c=>c.toLowerCase()===name.toLowerCase());
+              return (
+                <div key={name} style={{background:'var(--gray-50)',border:'1px solid var(--gray-200)',borderRadius:10,padding:'10px 16px',minWidth:150}}>
+                  <span className={`chip chip-${cidx>=0?cidx%7:Math.abs(name.charCodeAt(0))%7}`}>{name}</span>
+                  <div style={{fontSize:12,color:'var(--gray-500)',marginTop:4}}>{s.bags} שקיות · {s.count} עיצובים</div>
+                </div>
+              );
+            })}
           </div>
         </div>
       )}
@@ -895,15 +994,16 @@ function BagsView({orders}) {
           {customers.map(c=><option key={c} value={c}>{c}</option>)}
         </select>
         <span className="f-count">{filtered.length} שקיות</span>
+        <button className="btn btn-pri" style={{marginRight:'auto',fontSize:13,padding:'6px 14px'}} onClick={openAdd}>+ הוסף שקית</button>
       </div>
       <div className="card">
         <div className="card-hdr"><span className="card-title">🛍️ פירוט שקיות לגרפיקה</span><span style={{fontSize:12,color:'var(--gray-400)'}}>{allBags.length} שקיות סה״כ</span></div>
         {filtered.length===0 ? (
-          <div className="empty"><div className="empty-icon">🛍️</div><p className="empty-txt">אין נתוני שקיות — הוסף פרטי שקיות בטופס ההזמנה</p></div>
+          <div className="empty"><div className="empty-icon">🛍️</div><p className="empty-txt">אין נתוני שקיות — לחץ "+ הוסף שקית" כדי להתחיל</p></div>
         ) : (
           <div className="tbl-wrap">
             <table>
-              <thead><tr><th>זוג</th><th>שקית</th><th>צד א — מלל</th><th>מספר תמונה</th><th>צד ב — שמות</th><th>קוקטייל</th><th>צריך תאריך?</th><th>כמות</th><th>תאריך אירוע</th></tr></thead>
+              <thead><tr><th>זוג</th><th>שקית</th><th>צד א — מלל</th><th>מספר תמונה</th><th>צד ב — שמות</th><th>קוקטייל</th><th>צריך תאריך?</th><th>כמות</th><th>תאריך אירוע</th><th></th></tr></thead>
               <tbody>
                 {filtered.map((bag,idx)=>(
                   <tr key={idx} style={{background:idx%2===0?'#fff':'var(--gray-50)'}}>
@@ -912,10 +1012,11 @@ function BagsView({orders}) {
                     <td style={{maxWidth:220,fontSize:13}}>{bag.phraseA||'—'}</td>
                     <td className="td-c">{bag.imageNumA||'—'}</td>
                     <td style={{fontSize:13}}>{bag.namesB||'—'}</td>
-                    <td>{bag.cocktailB?(() => { const ct=bag.cocktailB; const idx=COCKTAIL_TYPES.findIndex(c=>c.toLowerCase()===ct.toLowerCase().trim()); return <span className={`chip chip-${idx>=0?idx%7:Math.abs(ct.charCodeAt(0))%7}`}>{ct}</span>; })():'—'}</td>
+                    <td>{bag.cocktailB?(() => { const ct=bag.cocktailB; const cidx=COCKTAIL_TYPES.findIndex(c=>c.toLowerCase()===ct.toLowerCase().trim()); return <span className={`chip chip-${cidx>=0?cidx%7:Math.abs(ct.charCodeAt(0))%7}`}>{ct}</span>; })():'—'}</td>
                     <td className="td-c">{bag.needsDate?'✅':'❌'}</td>
                     <td className="td-c" style={{fontWeight:600}}>{bag.quantity||'—'}</td>
                     <td>{fmtDate(bag.eventDate)}</td>
+                    <td><button className="btn-icon" title="עריכה" onClick={()=>openEdit(bag)}>✏️</button></td>
                   </tr>
                 ))}
               </tbody>
@@ -923,6 +1024,16 @@ function BagsView({orders}) {
           </div>
         )}
       </div>
+      {showModal && (
+        <BagModal
+          bag={editingBag?.bag||null}
+          bagIdx={editingBag?.bagIdx}
+          orderId={editingBag?.orderId||''}
+          orders={orders}
+          onSave={handleSave}
+          onClose={handleClose}
+        />
+      )}
     </div>
   );
 }
@@ -1193,7 +1304,7 @@ function OrdersTable({orders, allOrders, filters, onFilter, onEdit, onDelete, on
         <span className="f-lbl">סגר:</span>
         <select className="f-sel" value={filters.closedBy||''} onChange={e=>onFilter(p=>({...p,closedBy:e.target.value}))}>
           <option value="">הכולם</option>
-          {TEAM.map(t=><option key={t} value={t}>{t}</option>)}
+          {TEAM_CLOSER.map(t=><option key={t} value={t}>{t}</option>)}
         </select>
         <span className="f-count">{orders.length} הזמנות</span>
         {hasF && <button className="f-clear" onClick={()=>onFilter({month:'',status:'',closedBy:''})}>נקה סינון ✕</button>}
@@ -1308,7 +1419,7 @@ function OrderForm({order, onSave, onClose}) {
               <div className="fgroup"><label className="flbl">מי סגר את ההזמנה</label>
                 <select className="fsel" value={f.closedBy} onChange={e=>set('closedBy',e.target.value)}>
                   <option value="">— לא הוגדר —</option>
-                  {TEAM.map(t=><option key={t} value={t}>{t}</option>)}
+                  {TEAM_CLOSER.map(t=><option key={t} value={t}>{t}</option>)}
                 </select>
               </div>
               <div className="fg-sec">תשלומים</div>
@@ -1652,6 +1763,19 @@ function App() {
   const handleDeleteDelivery = (id) => { if (!db) return; db.ref('deliveries').child(id).remove(); };
   const handleUpdateDelivery = (id, data) => { if (!db) return; db.ref('deliveries').child(id).update({...data, updatedAt: new Date().toISOString()}); };
 
+  // Bag handlers
+  const handleUpdateBag = (orderId, bagIdx, bagData) => {
+    if (!db) return;
+    db.ref(`orders/${orderId}/bags/${bagIdx}`).set(bagData);
+  };
+  const handleAddBag = (orderId, bagData) => {
+    if (!db) return;
+    const order = orders.find(o=>o.id===orderId);
+    if (!order) return;
+    const bags = order.bags ? (Array.isArray(order.bags) ? order.bags : Object.values(order.bags)) : [];
+    db.ref(`orders/${orderId}/bags`).set([...bags, bagData]);
+  };
+
   const handleEdit = (o) => { setEditing(o); setShowForm(true); };
   const handleAdd = () => { setEditing(null); setShowForm(true); };
   const handleClose = () => { setShowForm(false); setEditing(null); };
@@ -1701,7 +1825,7 @@ function App() {
         {tab==='orders'    && <OrdersTable orders={filtered} allOrders={orders} filters={filters} onFilter={setFilters} onEdit={handleEdit} onDelete={handleDelete} onAdd={handleAdd} onQuickUpdate={handleQuickUpdate}/>}
         {tab==='monthly'   && <MonthlyStats orders={orders} settings={settings} onUpdateSettings={handleUpdateSettings}/>}
         {tab==='calendar'  && <CalendarView orders={orders} calendarEvents={calendarEvents} onEdit={handleEdit} onAddCalEvent={handleAddCalEvent} onEditCalEvent={handleEditCalEvent} onDeleteCalEvent={handleDeleteCalEvent}/>}
-        {tab==='bags'      && <BagsView orders={orders}/>}
+        {tab==='bags'      && <BagsView orders={orders} onUpdateBag={handleUpdateBag} onAddBag={handleAddBag}/>}
         {tab==='delivery'  && <DeliveryView deliveries={deliveries} orders={orders} onAdd={handleAddDelivery} onDelete={handleDeleteDelivery} onUpdate={handleUpdateDelivery}/>}
         {tab==='finance'   && <TransactionsView transactions={transactions} onAdd={handleAddTransaction} onDelete={handleDeleteTransaction}/>}
       </main>
