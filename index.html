@@ -513,7 +513,7 @@ function PnLCard({ orders, settings, onUpdateSettings }) {
 }
 
 // ── Calendar Event Modal (manual events) ──
-function CalendarEventModal({date, event, onSave, onClose}) {
+function CalendarEventModal({date, event, onSave, onDelete, onClose}) {
   const [f, setF] = useState({
     title: event?.title||'', date: event?.date||date||'',
     time: event?.time||'', notes: event?.notes||'',
@@ -523,6 +523,9 @@ function CalendarEventModal({date, event, onSave, onClose}) {
     e.preventDefault();
     if (!f.title.trim()||!f.date) return;
     onSave({...f, type:'manual', createdAt:new Date().toISOString()});
+  };
+  const handleDelete = () => {
+    if (window.confirm(`למחוק את האירוע "${event.title}"?`)) { onDelete(event.id); onClose(); }
   };
   return (
     <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)onClose();}}>
@@ -543,6 +546,7 @@ function CalendarEventModal({date, event, onSave, onClose}) {
             </div>
           </div>
           <div className="modal-foot">
+            {event && <button type="button" className="btn btn-del" style={{marginLeft:'auto'}} onClick={handleDelete}>🗑️ מחק</button>}
             <button type="submit" className="btn btn-violet">שמור</button>
             <button type="button" className="btn btn-outline" onClick={onClose}>ביטול</button>
           </div>
@@ -721,6 +725,7 @@ function CalendarView({orders, calendarEvents, onEdit, onAddCalEvent, onEditCalE
             else onAddCalEvent(data);
             setShowCalModal(false);
           }}
+          onDelete={(id) => { onDeleteCalEvent(id); setShowCalModal(false); }}
           onClose={()=>setShowCalModal(false)}
         />
       )}
