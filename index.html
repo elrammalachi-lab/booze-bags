@@ -1049,6 +1049,7 @@ function DeliveryView({orders, onQuickUpdate}) {
   const [editingOrder, setEditingOrder] = useState(null);
   const [notes, setNotes] = useState('');
   const [delStatus, setDelStatus] = useState('ממתין');
+  const [delPrice, setDelPrice] = useState('');
 
   const deliveryOrders = useMemo(() =>
     orders.filter(o => o.deliveryType === 'משלוח' || o.deliveryType === 'איסוף')
@@ -1064,9 +1065,9 @@ function DeliveryView({orders, onQuickUpdate}) {
     pending: deliveryOrders.filter(o=>!o.deliveryStatus||o.deliveryStatus==='ממתין').length,
   }), [deliveryOrders]);
 
-  const openEdit = (o) => { setEditingOrder(o); setNotes(o.deliveryNotes||''); setDelStatus(o.deliveryStatus||'ממתין'); };
+  const openEdit = (o) => { setEditingOrder(o); setNotes(o.deliveryNotes||''); setDelStatus(o.deliveryStatus||'ממתין'); setDelPrice(o.deliveryPrice||''); };
   const handleClose = () => setEditingOrder(null);
-  const handleSave = () => { onQuickUpdate(editingOrder.id, {deliveryNotes:notes, deliveryStatus:delStatus}); handleClose(); };
+  const handleSave = () => { onQuickUpdate(editingOrder.id, {deliveryNotes:notes, deliveryStatus:delStatus, deliveryPrice:Number(delPrice)||0}); handleClose(); };
 
   return (
     <div style={{display:'flex',flexDirection:'column',gap:16}}>
@@ -1087,7 +1088,7 @@ function DeliveryView({orders, onQuickUpdate}) {
         ) : (
           <div className="tbl-wrap">
             <table>
-              <thead><tr><th>לקוח</th><th>תאריך אירוע</th><th>מיקום</th><th>כמות</th><th>סוג</th><th>סטטוס הזמנה</th><th>סטטוס משלוח</th><th>הערות משלוח</th><th></th></tr></thead>
+              <thead><tr><th>לקוח</th><th>תאריך אירוע</th><th>מיקום</th><th>כמות</th><th>סוג</th><th>מחיר משלוח</th><th>סטטוס הזמנה</th><th>סטטוס משלוח</th><th>הערות משלוח</th><th></th></tr></thead>
               <tbody>{deliveryOrders.map((o,idx)=>(
                 <tr key={o.id} style={{background:idx%2===0?'#fff':'var(--gray-50)'}}>
                   <td className="td-b">{o.customerName}</td>
@@ -1095,6 +1096,7 @@ function DeliveryView({orders, onQuickUpdate}) {
                   <td style={{maxWidth:160,fontSize:12}}>{o.eventLocation||'—'}</td>
                   <td className="td-c" style={{fontWeight:600}}>{o.bagCount||'—'}</td>
                   <td><span style={{fontWeight:700,color:o.deliveryType==='משלוח'?'var(--primary)':'var(--cyan)'}}>{o.deliveryType}</span></td>
+                  <td className="td-c" style={{fontWeight:600,color:'var(--green)'}}>{o.deliveryPrice?`₪${Number(o.deliveryPrice).toLocaleString('he-IL')}`:'—'}</td>
                   <td><Badge status={o.status}/></td>
                   <td><span className={`del-badge ${DELIVERY_STATUS_CLASS[o.deliveryStatus||'ממתין']||'del-waiting'}`}>{o.deliveryStatus||'ממתין'}</span></td>
                   <td className="td-note" title={o.deliveryNotes||''}>{o.deliveryNotes||'—'}</td>
@@ -1125,6 +1127,10 @@ function DeliveryView({orders, onQuickUpdate}) {
                   </select>
                 </div>
                 <div className="fgroup">
+                  <label className="flbl">מחיר משלוח (₪)</label>
+                  <input className="finp" type="number" min="0" step="1" placeholder="0" value={delPrice} onChange={e=>setDelPrice(e.target.value)} dir="ltr" style={{textAlign:'right'}}/>
+                </div>
+                <div className="fgroup" style={{gridColumn:'1/-1'}}>
                   <label className="flbl">הערות משלוח</label>
                   <textarea className="ftxt" rows={4} placeholder="כתובת מדויקת, שעה, הוראות מיוחדות..." value={notes} onChange={e=>setNotes(e.target.value)}/>
                 </div>
