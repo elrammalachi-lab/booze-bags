@@ -1224,7 +1224,7 @@ function OrdersTable({orders, allOrders, filters, onFilter, onEdit, onDelete, on
                 <td>{o.eventType||'—'}</td>
                 <td className="td-c" style={{fontWeight:600}}>{o.bagCount}</td>
                 <td>{fmt(o.packagePrice)}</td>
-                <td style={{minWidth:160}}>{ctypes.length>0?(<div className="cocktail-chips">{ctypes.map((ct)=><span key={ct} className={`chip chip-${COCKTAIL_TYPES.indexOf(ct)%7}`}>{ct}</span>)}</div>):<span style={{color:'var(--gray-400)'}}>—</span>}</td>
+                <td style={{minWidth:160}}>{ctypes.length>0?(<div className="cocktail-chips">{ctypes.map((ct)=>{const idx=COCKTAIL_TYPES.findIndex(c=>c.toLowerCase()===ct.toLowerCase());return <span key={ct} className={`chip chip-${idx>=0?idx%7:Math.abs(ct.charCodeAt(0))%7}`}>{ct}</span>})}</div>):<span style={{color:'var(--gray-400)'}}>—</span>}</td>
                 <td className="td-c"><PayBtn orderId={o.id} field="advancePaid" value={!!o.advancePaid}/></td>
                 <td className="td-c"><PayBtn orderId={o.id} field="balancePaid" value={!!o.balancePaid}/></td>
                 <td><TeamTag who={o.closedBy}/></td>

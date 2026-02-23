@@ -1,4 +1,4 @@
-const CACHE = 'booze-bags-v2';
+const CACHE = 'booze-bags-v3';
 self.addEventListener('install', e => {
   e.waitUntil(
     caches.open(CACHE).then(c => c.addAll(['/booze-bags/', '/booze-bags/index.html']))
