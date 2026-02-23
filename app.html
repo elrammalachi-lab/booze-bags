@@ -912,7 +912,7 @@ function BagsView({orders}) {
                     <td style={{maxWidth:220,fontSize:13}}>{bag.phraseA||'—'}</td>
                     <td className="td-c">{bag.imageNumA||'—'}</td>
                     <td style={{fontSize:13}}>{bag.namesB||'—'}</td>
-                    <td>{bag.cocktailB?<span className={`chip chip-${COCKTAIL_TYPES.map(c=>c.toLowerCase()).indexOf((bag.cocktailB||'').toLowerCase().trim())%7<0?0:COCKTAIL_TYPES.map(c=>c.toLowerCase()).indexOf((bag.cocktailB||'').toLowerCase().trim())%7}`}>{bag.cocktailB}</span>:'—'}</td>
+                    <td>{bag.cocktailB?(() => { const ct=bag.cocktailB; const idx=COCKTAIL_TYPES.findIndex(c=>c.toLowerCase()===ct.toLowerCase().trim()); return <span className={`chip chip-${idx>=0?idx%7:Math.abs(ct.charCodeAt(0))%7}`}>{ct}</span>; })():'—'}</td>
                     <td className="td-c">{bag.needsDate?'✅':'❌'}</td>
                     <td className="td-c" style={{fontWeight:600}}>{bag.quantity||'—'}</td>
                     <td>{fmtDate(bag.eventDate)}</td>
