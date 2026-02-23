@@ -1721,9 +1721,10 @@ function App() {
     if (window.confirm('האם למחוק את ההזמנה?')) db.ref('orders').child(id).remove();
   };
 
-  const handleQuickUpdate = (id, field, value) => {
+  const handleQuickUpdate = (id, fieldOrData, value) => {
     if (!db) return;
-    db.ref('orders').child(id).update({[field]: value});
+    const update = typeof fieldOrData === 'object' ? fieldOrData : {[fieldOrData]: value};
+    db.ref('orders').child(id).update(update);
   };
 
   const handleAddTransaction = (data) => {
