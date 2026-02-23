@@ -372,7 +372,7 @@ const STATUSES = [
   { id: 'delivered', label: 'הגיע ללקוח',           icon: '🚚' },
   { id: 'completed', label: 'הושלם',                icon: '✅' },
 ];
-const TEAM = ['מלאכי', 'יותם', 'טל', 'מאיה'];
+const TEAM = ['מלאכי', 'יותם'];
 const DOW_HE = ['א','ב','ג','ד','ה','ו','ש'];
 
 // ── Helpers ──
@@ -392,7 +392,7 @@ const StatusLabel = {
   open:'פתוחה','in-progress':'בטיפול',closed:'סגורה'
 };
 function Badge({status}) { return <span className={BadgeClass[status]||'badge'}>{StatusLabel[status]||status}</span>; }
-const TEAM_TAG_CLASS = { 'מלאכי':'tag-malachi', 'יותם':'tag-yotam', 'טל':'tag-tal', 'מאיה':'tag-maya' };
+const TEAM_TAG_CLASS = { 'מלאכי':'tag-malachi', 'יותם':'tag-yotam' };
 function TeamTag({who}) {
   if (!who) return <span className="team-tag tag-none">—</span>;
   return <span className={`team-tag ${TEAM_TAG_CLASS[who]||'tag-none'}`}>{who}</span>;
@@ -634,10 +634,10 @@ function TransactionsView({transactions, onAdd, onDelete}) {
       </div>
 
       {/* Per-person summary */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:16}}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:16}}>
         {TEAM.map(name=>{const d=totals.perPerson[name]||{income:0,expense:0};return(
           <div key={name} className="lb-card"
-            style={{borderTopColor: name==='מלאכי'?'#db2777':name==='יותם'?'#2563eb':name==='טל'?'#059669':'#d97706', borderTopWidth:4, borderTopStyle:'solid'}}>
+            style={{borderTopColor: name==='מלאכי'?'#db2777':'#2563eb', borderTopWidth:4, borderTopStyle:'solid'}}>
             <div style={{fontSize:16,fontWeight:800,marginBottom:12}}>{name}</div>
             <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:8}}>
               <div><div style={{fontSize:11,color:'var(--gray-400)',fontWeight:700,textTransform:'uppercase',marginBottom:4}}>הכניס</div><div style={{fontSize:18,fontWeight:800,color:'var(--green)'}}>{fmt(d.income)}</div></div>
@@ -768,10 +768,10 @@ function Dashboard({orders, settings, onUpdateSettings, onAdd, onEdit}) {
       </div>
 
       {/* Team leaderboard */}
-      <div style={{display:'grid',gridTemplateColumns:'repeat(4,1fr)',gap:16}}>
+      <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:16}}>
         {TEAM.map(name=>(
-          <div key={name} className={`lb-card lb-${name==='מלאכי'?'malachi':name==='יותם'?'yotam':name==='טל'?'tal':'maya'}`}
-            style={{borderTopColor: name==='מלאכי'?'#db2777':name==='יותם'?'#2563eb':name==='טל'?'#059669':'#d97706'}}>
+          <div key={name} className={`lb-card lb-${name==='מלאכי'?'malachi':'yotam'}`}
+            style={{borderTopColor: name==='מלאכי'?'#db2777':'#2563eb'}}>
             <div style={{fontSize:13,color:'var(--gray-400)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.5px',marginBottom:8}}>🏆 סגר</div>
             <div style={{display:'flex',alignItems:'baseline',gap:8}}>
               <span style={{fontSize:36,fontWeight:800,color:'var(--gray-900)'}}>{s.teamCounts[name]||0}</span>
