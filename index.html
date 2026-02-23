@@ -851,7 +851,7 @@ function BagsView({orders}) {
   const allBags = useMemo(() => {
     const result = [];
     orders.forEach(order => {
-      const bags = Array.isArray(order.bags) ? order.bags : [];
+      const bags = order.bags ? (Array.isArray(order.bags) ? order.bags : Object.values(order.bags)) : [];
       bags.forEach(bag => result.push({...bag, customerName:order.customerName, eventDate:order.eventDate, orderId:order.id}));
     });
     return result;
@@ -1258,7 +1258,7 @@ function OrderForm({order, onSave, onClose}) {
     cocktailTypes: Array.isArray(order.cocktailTypes) ? order.cocktailTypes : [],
     closedBy: order.closedBy||'',
     deliveryType: order.deliveryType||'',
-    bags: Array.isArray(order.bags) ? order.bags : [],
+    bags: order.bags ? (Array.isArray(order.bags) ? order.bags : Object.values(order.bags)) : [],
   } : {...EMPTY});
 
   const set = (k,v) => setF(p=>({...p,[k]:v}));
