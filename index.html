@@ -413,7 +413,8 @@ const StatusLabel = {
   open:'פתוחה','in-progress':'בטיפול',closed:'סגורה'
 };
 function Badge({status}) { return <span className={BadgeClass[status]||'badge'}>{StatusLabel[status]||status}</span>; }
-const TEAM_TAG_CLASS = { 'מלאכי':'tag-malachi', 'יותם':'tag-yotam' };
+const TEAM_TAG_CLASS = { 'מלאכי':'tag-malachi', 'יותם':'tag-yotam', 'טל':'tag-tal', 'מאיה':'tag-maya' };
+const TEAM_CLOSER_COLOR = { 'מלאכי':'#db2777', 'יותם':'#2563eb', 'טל':'#059669', 'מאיה':'#d97706' };
 function TeamTag({who}) {
   if (!who) return <span className="team-tag tag-none">—</span>;
   return <span className={`team-tag ${TEAM_TAG_CLASS[who]||'tag-none'}`}>{who}</span>;
@@ -1177,7 +1178,7 @@ function Dashboard({orders, settings, onUpdateSettings, onAdd, onEdit}) {
     statusCounts.completed+= orders.filter(o=>o.status==='closed').length;
     const margin = rev>0 ? Math.round(netProfit/rev*100) : 0;
     // Team stats
-    const teamCounts = TEAM.reduce((acc,name)=>({...acc,[name]:orders.filter(o=>o.closedBy===name).length}),{});
+    const teamCounts = TEAM_CLOSER.reduce((acc,name)=>({...acc,[name]:orders.filter(o=>o.closedBy===name).length}),{});
     return {total:orders.length,rev,netProfit,bags,statusCounts,margin,teamCounts};
   },[orders, settings]);
 
@@ -1218,9 +1219,8 @@ function Dashboard({orders, settings, onUpdateSettings, onAdd, onEdit}) {
 
       {/* Team leaderboard */}
       <div style={{display:'grid',gridTemplateColumns:'repeat(2,1fr)',gap:16}}>
-        {TEAM.map(name=>(
-          <div key={name} className={`lb-card lb-${name==='מלאכי'?'malachi':'yotam'}`}
-            style={{borderTopColor: name==='מלאכי'?'#db2777':'#2563eb'}}>
+        {TEAM_CLOSER.map(name=>(
+          <div key={name} className="lb-card" style={{borderTopColor:TEAM_CLOSER_COLOR[name]||'var(--primary)',borderTopWidth:4,borderTopStyle:'solid'}}>
             <div style={{fontSize:13,color:'var(--gray-400)',fontWeight:700,textTransform:'uppercase',letterSpacing:'.5px',marginBottom:8}}>🏆 סגר</div>
             <div style={{display:'flex',alignItems:'baseline',gap:8}}>
               <span style={{fontSize:36,fontWeight:800,color:'var(--gray-900)'}}>{s.teamCounts[name]||0}</span>
