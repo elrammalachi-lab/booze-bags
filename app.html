@@ -1806,8 +1806,7 @@ function PinGate({onUnlock}) {
   return (
     <div style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',background:'var(--gray-50)'}}>
       <div className="card" style={{maxWidth:300,width:'100%',padding:'36px 28px',textAlign:'center'}}>
-        <div style={{fontSize:44,marginBottom:12}}>🍹</div>
-        <div style={{fontSize:20,fontWeight:800,marginBottom:4}}>שקיות קוקטייל</div>
+        <img src="logo.jpg" alt="Booze Bags" style={{width:160,marginBottom:16,borderRadius:12}}/>
         <div style={{fontSize:13,color:'var(--gray-500)',marginBottom:24}}>הזן קוד PIN</div>
         <div style={{display:'flex',justifyContent:'center',gap:14,marginBottom:24}}>
           {[0,1,2,3].map(i=>(
@@ -2111,10 +2110,10 @@ function App() {
       <header className="hdr">
         <div className="hdr-in">
           <div className="hdr-logo">
-            <span className="hdr-icon">🍹</span>
+            <img src="logo.jpg" alt="Booze Bags" style={{height:48,borderRadius:8}}/>
             <div>
               <div className="hdr-title">מנהל הזמנות <span className={`sync-dot${connected?'':' off'}`} title={connected?'מחובר לענן':'מנותק'}/></div>
-              <div className="hdr-sub">שקיות קוקטייל לאירועים {connected?'• מחובר לענן ☁️':'• מנותק'}</div>
+              <div className="hdr-sub">{connected?'מחובר לענן ☁️':'מנותק'}</div>
             </div>
           </div>
           <div style={{display:'flex',gap:8,alignItems:'center'}}>
