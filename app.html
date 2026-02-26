@@ -736,11 +736,21 @@ function CalendarView({orders, calendarEvents, onEdit, onAddCalEvent, onEditCalE
 }
 
 // ── Transactions View ──
-function TransactionsView({transactions, onAdd, onDelete}) {
+function TransactionsView({transactions, onAdd, onDelete, onUpdate}) {
   const [showForm, setShowForm] = useState(false);
   const today = new Date().toISOString().split('T')[0];
   const [form, setForm] = useState({type:'income', description:'', amount:'', who:'מלאכי', date:today});
   const setF = (k,v) => setForm(p=>({...p,[k]:v}));
+  const [editTx, setEditTx] = useState(null); // transaction being edited
+  const [editForm, setEditForm] = useState({});
+  const setEF = (k,v) => setEditForm(p=>({...p,[k]:v}));
+  const openEdit = (t) => { setEditTx(t); setEditForm({type:t.type, description:t.description, amount:t.amount, who:t.who, date:t.date||today}); };
+  const handleEditSave = (e) => {
+    e.preventDefault();
+    if (!editForm.description.trim() || !editForm.amount) return;
+    onUpdate(editTx.id, {...editForm, amount: Number(editForm.amount)});
+    setEditTx(null);
+  };
 
   const totals = useMemo(() => {
     const income  = transactions.filter(t=>t.type==='income').reduce((a,t)=>a+(Number(t.amount)||0),0);
@@ -765,6 +775,50 @@ function TransactionsView({transactions, onAdd, onDelete}) {
 
   return (
     <div style={{display:'flex',flexDirection:'column',gap:16}}>
+      {/* Edit modal */}
+      {editTx && (
+        <div className="modal-overlay" onClick={()=>setEditTx(null)}>
+          <div className="modal" onClick={e=>e.stopPropagation()} style={{maxWidth:480}}>
+            <div className="modal-hdr">
+              <span className="modal-title">✏️ עריכת רשומה</span>
+              <button className="modal-close" onClick={()=>setEditTx(null)}>✕</button>
+            </div>
+            <form onSubmit={handleEditSave}>
+              <div className="modal-body" style={{display:'flex',flexDirection:'column',gap:14}}>
+                <div className="fgroup">
+                  <label className="flbl">סוג</label>
+                  <select className="fsel" value={editForm.type} onChange={e=>setEF('type',e.target.value)}>
+                    <option value="income">💰 הכנסה</option>
+                    <option value="expense">💸 הוצאה</option>
+                  </select>
+                </div>
+                <div className="fgroup">
+                  <label className="flbl">תיאור</label>
+                  <input className="finp" type="text" value={editForm.description} onChange={e=>setEF('description',e.target.value)} required/>
+                </div>
+                <div className="fgroup">
+                  <label className="flbl">סכום (₪)</label>
+                  <input className="finp" type="number" min="0" value={editForm.amount} onChange={e=>setEF('amount',e.target.value)} required dir="ltr" style={{textAlign:'right'}}/>
+                </div>
+                <div className="fgroup">
+                  <label className="flbl">מי</label>
+                  <select className="fsel" value={editForm.who} onChange={e=>setEF('who',e.target.value)}>
+                    {TEAM.map(t=><option key={t} value={t}>{t}</option>)}
+                  </select>
+                </div>
+                <div className="fgroup">
+                  <label className="flbl">תאריך</label>
+                  <input className="finp" type="date" value={editForm.date||''} onChange={e=>setEF('date',e.target.value)}/>
+                </div>
+              </div>
+              <div className="modal-foot">
+                <button type="submit" className="btn btn-violet">שמור</button>
+                <button type="button" className="btn btn-outline" onClick={()=>setEditTx(null)}>ביטול</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
       {/* Summary cards */}
       <div className="stats-grid">
         <div className="stat-card"><div className="stat-icon si-green">💰</div><div><div className="stat-val" style={{color:'var(--green)'}}>{fmt(totals.income)}</div><div className="stat-lbl">סה״כ הכנסות</div></div></div>
@@ -843,6 +897,7 @@ function TransactionsView({transactions, onAdd, onDelete}) {
                 </div>
                 <TeamTag who={t.who}/>
                 <span className={t.type==='income'?'tx-amt-pos':'tx-amt-neg'}>{t.type==='income'?'+':'-'}{fmt(t.amount)}</span>
+                <button className="btn-icon" onClick={()=>openEdit(t)} title="ערוך">✏️</button>
                 <button className="btn-del" onClick={()=>onDelete(t.id)}>🗑️</button>
               </div>
             ))}
@@ -1817,6 +1872,11 @@ function App() {
     if (window.confirm('למחוק רשומה זו?')) db.ref('transactions').child(id).remove();
   };
 
+  const handleUpdateTransaction = (id, data) => {
+    if (!db) return;
+    db.ref('transactions').child(id).update(data);
+  };
+
   // Calendar events handlers
   const handleAddCalEvent = (data) => { if (!db) return; db.ref('calendarEvents').push(data); };
   const handleEditCalEvent = (id, data) => { if (!db) return; db.ref('calendarEvents').child(id).set({...data, updatedAt: new Date().toISOString()}); };
@@ -1907,7 +1967,7 @@ function App() {
         {tab==='calendar'  && <CalendarView orders={orders} calendarEvents={calendarEvents} onEdit={handleEdit} onAddCalEvent={handleAddCalEvent} onEditCalEvent={handleEditCalEvent} onDeleteCalEvent={handleDeleteCalEvent}/>}
         {tab==='bags'      && <BagsView orders={orders} onUpdateBag={handleUpdateBag} onAddBag={handleAddBag}/>}
         {tab==='delivery'  && <DeliveryView orders={orders} onQuickUpdate={handleQuickUpdate}/>}
-        {tab==='finance'   && <TransactionsView transactions={transactions} onAdd={handleAddTransaction} onDelete={handleDeleteTransaction}/>}
+        {tab==='finance'   && <TransactionsView transactions={transactions} onAdd={handleAddTransaction} onDelete={handleDeleteTransaction} onUpdate={handleUpdateTransaction}/>}
       </main>
 
       {showForm && <OrderForm order={editing} onSave={handleSave} onClose={handleClose}/>}
