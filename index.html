@@ -1501,7 +1501,7 @@ function OrderForm({order, onSave, onClose}) {
 }
 
 // ── Monthly Stats ──
-function MonthlyStats({orders, transactions, settings, onUpdateSettings, monthlyExpenses, onAddMonthlyExpense, onDeleteMonthlyExpense}) {
+function MonthlyStats({orders, transactions, settings, onUpdateSettings, monthlyExpenses, onAddMonthlyExpense, onDeleteMonthlyExpense, monthlySettings, onUpdateMonthlySetting}) {
   const [addingFor, setAddingFor] = useState(null); // ym string
   const [newExpLabel, setNewExpLabel] = useState('');
   const [newExpAmount, setNewExpAmount] = useState('');
@@ -1543,6 +1543,12 @@ function MonthlyStats({orders, transactions, settings, onUpdateSettings, monthly
     <div style={{display:'flex',flexDirection:'column',gap:16}}>
       <h2 className="section-title">פירוט לפי חודשים</h2>
       {monthly.map(m=>{
+        // הגדרות חודשיות (עלות לשקית + שיווק)
+        const ms = monthlySettings[m.ym] || {};
+        const costPerBag = ms.costPerBag !== undefined ? Number(ms.costPerBag) : BAG_COST_PER_UNIT;
+        const monthMarketing = ms.marketing !== undefined ? Number(ms.marketing) : 0;
+        // עלות ייצור חודשית לפי ה-costPerBag של החודש
+        const prodCost = m.bags * costPerBag;
         // הוצאות ידניות לחודש זה
         const meRaw = monthlyExpenses[m.ym] || {};
         const meList = Object.entries(meRaw).map(([id,e])=>({...e,id}));
@@ -1550,8 +1556,8 @@ function MonthlyStats({orders, transactions, settings, onUpdateSettings, monthly
         // הוצאות מהטאב
         const txExp = txExpensesByMonth[m.ym] || [];
         const txTotal = txExp.reduce((a,t)=>a+(Number(t.amount)||0),0);
-        // סה״כ הוצאות
-        const totalExp = m.cost + meTotal + txTotal;
+        // סה״כ הוצאות ורווח נקי
+        const totalExp = prodCost + monthMarketing + meTotal + txTotal;
         const netProfit = m.rev - totalExp;
         const monthMargin = m.rev>0?Math.round(netProfit/m.rev*100):0;
 
@@ -1561,7 +1567,7 @@ function MonthlyStats({orders, transactions, settings, onUpdateSettings, monthly
             <div className="month-hdr">
               <div>
                 <div className="month-title">{getLabel(m.ym)}</div>
-                <div className="month-sub">{m.orders.length} הזמנות • מרווח {monthMargin}%</div>
+                <div className="month-sub">{m.orders.length} הזמנות · {m.bags.toLocaleString('he-IL')} שקיות · מרווח {monthMargin}%</div>
               </div>
               <div style={{textAlign:'left',direction:'ltr'}}>
                 <div style={{fontSize:22,fontWeight:800,color:netProfit>=0?'var(--green)':'var(--red)'}}>{fmt(netProfit)}</div>
@@ -1569,21 +1575,49 @@ function MonthlyStats({orders, transactions, settings, onUpdateSettings, monthly
               </div>
             </div>
 
+            {/* הגדרות חודשיות — עלות לשקית + שיווק */}
+            <div style={{padding:'10px 20px',background:'var(--gray-50)',borderBottom:'1px solid var(--gray-100)',display:'flex',gap:24,flexWrap:'wrap',alignItems:'center'}}>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                <span style={{fontSize:13,fontWeight:600,color:'var(--gray-600)'}}>🛍️ עלות לשקית:</span>
+                <span style={{fontSize:12,color:'var(--gray-400)'}}>₪</span>
+                <input
+                  type="number" min="0" step="0.5"
+                  value={costPerBag}
+                  onChange={e=>onUpdateMonthlySetting(m.ym,'costPerBag',Number(e.target.value)||0)}
+                  style={{width:64,padding:'4px 8px',border:'1.5px solid var(--gray-200)',borderRadius:6,fontSize:13,textAlign:'right',fontFamily:'inherit'}}
+                  dir="ltr"
+                />
+                <span style={{fontSize:12,color:'var(--gray-400)'}}>× {m.bags} = <strong style={{color:'var(--red)'}}>-{fmt(prodCost)}</strong></span>
+              </div>
+              <div style={{display:'flex',alignItems:'center',gap:8}}>
+                <span style={{fontSize:13,fontWeight:600,color:'var(--gray-600)'}}>📣 שיווק:</span>
+                <span style={{fontSize:12,color:'var(--gray-400)'}}>₪</span>
+                <input
+                  type="number" min="0" step="100"
+                  value={monthMarketing}
+                  onChange={e=>onUpdateMonthlySetting(m.ym,'marketing',Number(e.target.value)||0)}
+                  style={{width:80,padding:'4px 8px',border:'1.5px solid var(--gray-200)',borderRadius:6,fontSize:13,textAlign:'right',fontFamily:'inherit'}}
+                  dir="ltr"
+                />
+              </div>
+            </div>
+
             {/* מיני סטטס */}
             <div className="mini-stats">
               <div className="mini-item"><div className="mini-lbl">💰 הכנסות</div><div className="mini-val v-cyan">{fmt(m.rev)}</div></div>
-              <div className="mini-item"><div className="mini-lbl">🛍️ עלות ייצור</div><div className="mini-val v-red">-{fmt(m.cost)}</div></div>
-              <div className="mini-item"><div className="mini-lbl">📋 הוצאות נוספות</div><div className="mini-val v-red">{meTotal+txTotal>0?`-${fmt(meTotal+txTotal)}`:'—'}</div></div>
+              <div className="mini-item"><div className="mini-lbl">🏭 עלות ייצור</div><div className="mini-val v-red">-{fmt(prodCost)}</div></div>
+              <div className="mini-item"><div className="mini-lbl">📋 שיווק + הוצאות</div><div className="mini-val v-red">{monthMarketing+meTotal+txTotal>0?`-${fmt(monthMarketing+meTotal+txTotal)}`:'—'}</div></div>
               <div className="mini-item"><div className="mini-lbl">🏆 רווח נקי</div><div className="mini-val" style={{color:netProfit>=0?'var(--green)':'var(--red)',fontWeight:800}}>{fmt(netProfit)}</div></div>
             </div>
 
             {/* פירוט הוצאות */}
             <div style={{padding:'10px 20px',borderTop:'1px solid var(--gray-100)',display:'flex',flexDirection:'column',gap:4}}>
               <div style={{fontSize:12,fontWeight:700,color:'var(--gray-400)',marginBottom:4}}>פירוט הוצאות החודש</div>
-              <div style={{display:'flex',justifyContent:'space-between',fontSize:13}}><span style={{color:'var(--gray-600)'}}>🏭 עלות ייצור שקיות</span><span style={{color:'var(--red)',fontWeight:600}}>-{fmt(m.cost)}</span></div>
+              <div style={{display:'flex',justifyContent:'space-between',fontSize:13}}><span style={{color:'var(--gray-600)'}}>🏭 עלות ייצור ({m.bags} שקיות × ₪{costPerBag})</span><span style={{color:'var(--red)',fontWeight:600}}>-{fmt(prodCost)}</span></div>
+              {monthMarketing>0 && <div style={{display:'flex',justifyContent:'space-between',fontSize:13}}><span style={{color:'var(--gray-600)'}}>📣 שיווק</span><span style={{color:'var(--red)',fontWeight:600}}>-{fmt(monthMarketing)}</span></div>}
               {txExp.map(t=>(
                 <div key={t.id} style={{display:'flex',justifyContent:'space-between',fontSize:13}}>
-                  <span style={{color:'var(--gray-600)'}}>💳 {t.description||t.category||'הוצאה'}</span>
+                  <span style={{color:'var(--gray-600)'}}>💳 {t.description||'הוצאה'}</span>
                   <span style={{color:'var(--red)',fontWeight:600}}>-{fmt(t.amount)}</span>
                 </div>
               ))}
@@ -1621,7 +1655,11 @@ function MonthlyStats({orders, transactions, settings, onUpdateSettings, monthly
             {/* טבלת הזמנות */}
             <div className="tbl-wrap"><table>
               <thead><tr><th>לקוח</th><th>סוג אירוע</th><th>שקיות</th><th>מחיר חבילה</th><th>תוספות</th><th>הכנסה</th><th>עלות ייצור</th><th>רווח גולמי</th><th>סגר</th><th>סטטוס</th></tr></thead>
-              <tbody>{[...m.orders].sort((a,b)=>new Date(a.eventDate)-new Date(b.eventDate)).map(o=>{const rev=revenue(o),prof=profit(o),cost=bagCost(o);return(
+              <tbody>{[...m.orders].sort((a,b)=>new Date(a.eventDate)-new Date(b.eventDate)).map(o=>{
+                const rev=revenue(o);
+                const oCost=(Number(o.bagCount)||0)*costPerBag;
+                const prof=rev-oCost;
+                return(
                 <tr key={o.id}>
                   <td className="td-b">{o.customerName}</td>
                   <td style={{color:'var(--gray-500)',fontSize:12}}>{o.eventType||'—'}</td>
@@ -1629,7 +1667,7 @@ function MonthlyStats({orders, transactions, settings, onUpdateSettings, monthly
                   <td>{fmt(o.packagePrice)}</td>
                   <td style={{color:o.extras>0?'inherit':'var(--gray-400)'}}>{o.extras>0?fmt(o.extras):'—'}</td>
                   <td className="td-rev">{fmt(rev)}</td>
-                  <td style={{color:'var(--red)',fontWeight:600}}>-{fmt(cost)}</td>
+                  <td style={{color:'var(--red)',fontWeight:600}}>-{fmt(oCost)}</td>
                   <td className={prof>=0?'td-prof':'td-loss'}>{fmt(prof)}</td>
                   <td><TeamTag who={o.closedBy}/></td>
                   <td><Badge status={o.status}/></td>
@@ -1637,8 +1675,8 @@ function MonthlyStats({orders, transactions, settings, onUpdateSettings, monthly
               <tfoot><tr style={{background:'var(--gray-50)'}}>
                 <td colSpan={5} style={{fontWeight:700,color:'var(--gray-600)',fontSize:12}}>סה״כ חודש</td>
                 <td className="td-rev">{fmt(m.rev)}</td>
-                <td style={{color:'var(--red)',fontWeight:600}}>-{fmt(m.cost)}</td>
-                <td className={m.prof>=0?'td-prof':'td-loss'}>{fmt(m.prof)}</td>
+                <td style={{color:'var(--red)',fontWeight:600}}>-{fmt(prodCost)}</td>
+                <td className={netProfit>=0?'td-prof':'td-loss'}>{fmt(m.rev-prodCost)}</td>
                 <td/><td/>
               </tr></tfoot>
             </table></div>
@@ -1662,6 +1700,7 @@ function App() {
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [deliveries, setDeliveries] = useState([]);
   const [monthlyExpenses, setMonthlyExpenses] = useState({});
+  const [monthlySettings, setMonthlySettings] = useState({});
   const [settings, setSettings] = useState({marketing: 2500, extraItems: [], monthlyFixed: 0});
   const [loading, setLoading] = useState(false);
   const [connected, setConnected] = useState(false);
@@ -1719,7 +1758,10 @@ function App() {
     const meRef = db.ref('monthlyExpenses');
     meRef.on('value', snap => setMonthlyExpenses(snap.val() || {}));
 
-    return () => { connRef.off(); ordersRef.off(); settingsRef.off(); txRef.off(); calRef.off(); delRef.off(); meRef.off(); };
+    const msRef = db.ref('monthlySettings');
+    msRef.on('value', snap => setMonthlySettings(snap.val() || {}));
+
+    return () => { connRef.off(); ordersRef.off(); settingsRef.off(); txRef.off(); calRef.off(); delRef.off(); meRef.off(); msRef.off(); };
   }, [db]);
 
   const handleUpdateSettings = (newSettings) => {
@@ -1784,6 +1826,12 @@ function App() {
   const handleAddDelivery = (data) => { if (!db) return; db.ref('deliveries').push(data); };
   const handleDeleteDelivery = (id) => { if (!db) return; db.ref('deliveries').child(id).remove(); };
   const handleUpdateDelivery = (id, data) => { if (!db) return; db.ref('deliveries').child(id).update({...data, updatedAt: new Date().toISOString()}); };
+
+  // Monthly settings handler (costPerBag, marketing per month)
+  const handleUpdateMonthlySetting = (ym, key, value) => {
+    if (!db) return;
+    db.ref(`monthlySettings/${ym}`).update({[key]: value});
+  };
 
   // Monthly expenses handlers
   const handleAddMonthlyExpense = (ym, item) => {
@@ -1855,7 +1903,7 @@ function App() {
       <main className="main">
         {tab==='dashboard' && <Dashboard orders={orders} settings={settings} onUpdateSettings={handleUpdateSettings} onAdd={handleAdd} onEdit={handleEdit}/>}
         {tab==='orders'    && <OrdersTable orders={filtered} allOrders={orders} filters={filters} onFilter={setFilters} onEdit={handleEdit} onDelete={handleDelete} onAdd={handleAdd} onQuickUpdate={handleQuickUpdate}/>}
-        {tab==='monthly'   && <MonthlyStats orders={orders} transactions={transactions} settings={settings} onUpdateSettings={handleUpdateSettings} monthlyExpenses={monthlyExpenses} onAddMonthlyExpense={handleAddMonthlyExpense} onDeleteMonthlyExpense={handleDeleteMonthlyExpense}/>}
+        {tab==='monthly'   && <MonthlyStats orders={orders} transactions={transactions} settings={settings} onUpdateSettings={handleUpdateSettings} monthlyExpenses={monthlyExpenses} onAddMonthlyExpense={handleAddMonthlyExpense} onDeleteMonthlyExpense={handleDeleteMonthlyExpense} monthlySettings={monthlySettings} onUpdateMonthlySetting={handleUpdateMonthlySetting}/>}
         {tab==='calendar'  && <CalendarView orders={orders} calendarEvents={calendarEvents} onEdit={handleEdit} onAddCalEvent={handleAddCalEvent} onEditCalEvent={handleEditCalEvent} onDeleteCalEvent={handleDeleteCalEvent}/>}
         {tab==='bags'      && <BagsView orders={orders} onUpdateBag={handleUpdateBag} onAddBag={handleAddBag}/>}
         {tab==='delivery'  && <DeliveryView orders={orders} onQuickUpdate={handleQuickUpdate}/>}
