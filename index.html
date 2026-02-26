@@ -1926,7 +1926,12 @@ function App() {
 
   // Calendar events handlers
   const handleAddCalEvent = (data) => { if (!db) return; db.ref('calendarEvents').push(data); };
-  const handleEditCalEvent = (id, data) => { if (!db) return; db.ref('calendarEvents').child(id).set({...data, updatedAt: new Date().toISOString()}); };
+  const handleEditCalEvent = (id, data) => {
+    if (!db) return;
+    const existing = calendarEvents.find(e => e.id === id) || {};
+    const {id: _id, ...existingClean} = existing;
+    db.ref('calendarEvents').child(id).set({...existingClean, ...data, createdAt: existingClean.createdAt || data.createdAt, updatedAt: new Date().toISOString()});
+  };
   const handleDeleteCalEvent = (id) => { if (!db) return; db.ref('calendarEvents').child(id).remove(); };
 
   // Delivery handlers
@@ -1962,7 +1967,10 @@ function App() {
   // Bag handlers
   const handleUpdateBag = (orderId, bagIdx, bagData) => {
     if (!db) return;
-    db.ref(`orders/${orderId}/bags/${bagIdx}`).set(bagData);
+    const order = orders.find(o => o.id === orderId);
+    const existingBags = order?.bags ? (Array.isArray(order.bags) ? order.bags : Object.values(order.bags)) : [];
+    const existingBag = existingBags[bagIdx] || {};
+    db.ref(`orders/${orderId}/bags/${bagIdx}`).set({...existingBag, ...bagData});
   };
   const handleAddBag = (orderId, bagData) => {
     if (!db) return;
