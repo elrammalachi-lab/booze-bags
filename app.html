@@ -1053,7 +1053,7 @@ function DeliveryView({orders, onQuickUpdate}) {
   const [delPrice, setDelPrice] = useState('');
 
   const deliveryOrders = useMemo(() =>
-    orders.filter(o => DELIVERY_TYPES.includes(o.deliveryType))
+    orders.filter(o => o.deliveryType && (DELIVERY_TYPES.includes(o.deliveryType) || o.deliveryType === 'איסוף'))
           .sort((a,b) => (a.eventDate||'').localeCompare(b.eventDate||'')),
     [orders]
   );
