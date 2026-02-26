@@ -388,7 +388,8 @@ const STATUSES = [
   { id: 'delivered', label: 'הגיע ללקוח',           icon: '🚚' },
   { id: 'completed', label: 'הושלם',                icon: '✅' },
 ];
-const DELIVERY_TYPES = ['איסוף', 'משלוח'];
+const DELIVERY_TYPES = ['משלוח', 'איסוף מתל אביב', 'איסוף משדרות'];
+const DELIVERY_TYPE_COLOR = { 'משלוח':'var(--primary)', 'איסוף מתל אביב':'var(--cyan)', 'איסוף משדרות':'#d97706' };
 const DELIVERY_STATUSES = ['ממתין', 'בדרך', 'הגיע', 'ביטל'];
 const DELIVERY_STATUS_CLASS = { 'ממתין':'del-waiting', 'בדרך':'del-way', 'הגיע':'del-arrived', 'ביטל':'del-cancelled' };
 const BAG_EMPTY = {bagNum:1, phraseA:'', imageNumA:'', namesB:'', cocktailB:'', quantity:100, needsDate:false};
@@ -685,7 +686,7 @@ function CalendarView({orders, calendarEvents, onEdit, onAddCalEvent, onEditCalE
                       <td style={{color:'var(--gray-500)',fontSize:12}}>{o.eventType||'—'}</td>
                       <td className="td-c" style={{fontWeight:600}}>{o.bagCount}</td>
                       <td style={{fontSize:12}}>{o.eventLocation||'—'}</td>
-                      <td>{o.deliveryType?<span style={{fontWeight:700,color:o.deliveryType==='משלוח'?'var(--primary)':'var(--cyan)'}}>{o.deliveryType}</span>:'—'}</td>
+                      <td>{o.deliveryType?<span style={{fontWeight:700,color:DELIVERY_TYPE_COLOR[o.deliveryType]||'var(--gray-600)'}}>{o.deliveryType}</span>:'—'}</td>
                       <td><TeamTag who={o.closedBy}/></td>
                       <td><Badge status={o.status}/></td>
                       <td className="td-note" title={o.notes||''}>{o.notes||'—'}</td>
@@ -1052,14 +1053,14 @@ function DeliveryView({orders, onQuickUpdate}) {
   const [delPrice, setDelPrice] = useState('');
 
   const deliveryOrders = useMemo(() =>
-    orders.filter(o => o.deliveryType === 'משלוח' || o.deliveryType === 'איסוף')
+    orders.filter(o => DELIVERY_TYPES.includes(o.deliveryType))
           .sort((a,b) => (a.eventDate||'').localeCompare(b.eventDate||'')),
     [orders]
   );
 
   const stats = useMemo(()=>({
     total: deliveryOrders.length,
-    pickup: deliveryOrders.filter(o=>o.deliveryType==='איסוף').length,
+    pickup: deliveryOrders.filter(o=>o.deliveryType?.startsWith('איסוף')).length,
     delivery: deliveryOrders.filter(o=>o.deliveryType==='משלוח').length,
     arrived: deliveryOrders.filter(o=>o.deliveryStatus==='הגיע').length,
     pending: deliveryOrders.filter(o=>!o.deliveryStatus||o.deliveryStatus==='ממתין').length,
@@ -1095,7 +1096,7 @@ function DeliveryView({orders, onQuickUpdate}) {
                   <td>{fmtDate(o.eventDate)}</td>
                   <td style={{maxWidth:160,fontSize:12}}>{o.eventLocation||'—'}</td>
                   <td className="td-c" style={{fontWeight:600}}>{o.bagCount||'—'}</td>
-                  <td><span style={{fontWeight:700,color:o.deliveryType==='משלוח'?'var(--primary)':'var(--cyan)'}}>{o.deliveryType}</span></td>
+                  <td><span style={{fontWeight:700,color:DELIVERY_TYPE_COLOR[o.deliveryType]||'var(--gray-600)'}}>{o.deliveryType}</span></td>
                   <td className="td-c" style={{fontWeight:600,color:'var(--green)'}}>{o.deliveryPrice?`₪${Number(o.deliveryPrice).toLocaleString('he-IL')}`:'—'}</td>
                   <td><Badge status={o.status}/></td>
                   <td><span className={`del-badge ${DELIVERY_STATUS_CLASS[o.deliveryStatus||'ממתין']||'del-waiting'}`}>{o.deliveryStatus||'ממתין'}</span></td>
@@ -1320,7 +1321,7 @@ function OrdersTable({orders, allOrders, filters, onFilter, onEdit, onDelete, on
                 <td>{o.phone?<a className="phone-link" href={`tel:${o.phone}`}>{o.phone}</a>:'—'}</td>
                 <td>{fmtDate(o.eventDate)}</td>
                 <td style={{fontSize:12,maxWidth:120}}>{o.eventLocation||'—'}</td>
-                <td>{o.deliveryType?<span style={{fontWeight:700,fontSize:12,color:o.deliveryType==='משלוח'?'var(--primary)':'var(--cyan)'}}>{o.deliveryType}</span>:'—'}</td>
+                <td>{o.deliveryType?<span style={{fontWeight:700,fontSize:12,color:DELIVERY_TYPE_COLOR[o.deliveryType]||'var(--gray-600)'}}>{o.deliveryType}</span>:'—'}</td>
                 <td>{o.eventType||'—'}</td>
                 <td className="td-c" style={{fontWeight:600}}>{o.bagCount}</td>
                 <td>{fmt(o.packagePrice)}</td>
@@ -1397,8 +1398,9 @@ function OrderForm({order, onSave, onClose}) {
               <div className="fgroup"><label className="flbl">משלוח / איסוף</label>
                 <select className="fsel" value={f.deliveryType} onChange={e=>set('deliveryType',e.target.value)}>
                   <option value="">— לא נקבע —</option>
-                  <option value="איסוף">📦 איסוף</option>
                   <option value="משלוח">🚚 משלוח</option>
+                  <option value="איסוף מתל אביב">📦 איסוף מתל אביב</option>
+                  <option value="איסוף משדרות">📦 איסוף משדרות</option>
                 </select>
               </div>
               <div className="fgroup"><label className="flbl">כמות שקיות</label><select className="fsel" value={f.bagCount} onChange={e=>set('bagCount',e.target.value)}>{BAG_COUNTS.map(n=><option key={n} value={n}>{n} שקיות</option>)}</select></div>
