@@ -1144,7 +1144,7 @@ function DeliveryView({orders, onQuickUpdate}) {
         ) : (
           <div className="tbl-wrap">
             <table>
-              <thead><tr><th>לקוח</th><th>תאריך אירוע</th><th>מיקום</th><th>כמות</th><th>סוג</th><th>מחיר משלוח</th><th>סטטוס הזמנה</th><th>סטטוס משלוח</th><th>הערות משלוח</th><th></th></tr></thead>
+              <thead><tr><th>לקוח</th><th>תאריך אירוע</th><th>מיקום</th><th>כמות</th><th>סוג</th><th>מחיר משלוח</th><th>סטטוס הזמנה</th><th>סטטוס משלוח</th><th>הערות</th><th></th></tr></thead>
               <tbody>{deliveryOrders.map((o,idx)=>(
                 <tr key={o.id} style={{background:idx%2===0?'#fff':'var(--gray-50)'}}>
                   <td className="td-b">{o.customerName}</td>
@@ -1155,7 +1155,11 @@ function DeliveryView({orders, onQuickUpdate}) {
                   <td className="td-c" style={{fontWeight:600,color:'var(--green)'}}>{o.deliveryPrice?`₪${Number(o.deliveryPrice).toLocaleString('he-IL')}`:'—'}</td>
                   <td><Badge status={o.status}/></td>
                   <td><span className={`del-badge ${DELIVERY_STATUS_CLASS[o.deliveryStatus||'ממתין']||'del-waiting'}`}>{o.deliveryStatus||'ממתין'}</span></td>
-                  <td className="td-note" title={o.deliveryNotes||''}>{o.deliveryNotes||'—'}</td>
+                  <td className="td-note" style={{maxWidth:200}}>
+                    {o.deliveryNotes && <div title={o.deliveryNotes} style={{marginBottom: o.notes ? 2 : 0}}>📦 {o.deliveryNotes}</div>}
+                    {o.notes && <div title={o.notes} style={{color:'var(--gray-400)',fontSize:11}}>📝 {o.notes}</div>}
+                    {!o.deliveryNotes && !o.notes && '—'}
+                  </td>
                   <td><button className="btn-icon" title="עדכן סטטוס / הערות" onClick={()=>openEdit(o)}>✏️</button></td>
                 </tr>
               ))}</tbody>
@@ -1186,8 +1190,14 @@ function DeliveryView({orders, onQuickUpdate}) {
                   <label className="flbl">מחיר משלוח (₪)</label>
                   <input className="finp" type="number" min="0" step="1" placeholder="0" value={delPrice} onChange={e=>setDelPrice(e.target.value)} dir="ltr" style={{textAlign:'right'}}/>
                 </div>
+                {editingOrder.notes && (
+                  <div className="fgroup" style={{gridColumn:'1/-1'}}>
+                    <label className="flbl">📝 הערות הזמנה (קריאה בלבד)</label>
+                    <div style={{padding:'8px 12px',background:'var(--gray-50)',border:'1.5px solid var(--gray-200)',borderRadius:8,fontSize:13,color:'var(--gray-600)',lineHeight:1.5}}>{editingOrder.notes}</div>
+                  </div>
+                )}
                 <div className="fgroup" style={{gridColumn:'1/-1'}}>
-                  <label className="flbl">הערות משלוח</label>
+                  <label className="flbl">📦 הערות משלוח</label>
                   <textarea className="ftxt" rows={4} placeholder="כתובת מדויקת, שעה, הוראות מיוחדות..." value={notes} onChange={e=>setNotes(e.target.value)}/>
                 </div>
               </div>
