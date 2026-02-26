@@ -1777,6 +1777,65 @@ function MonthlyStats({orders, transactions, settings, onUpdateSettings, monthly
   );
 }
 
+// ── PIN Gate ──
+const PIN = '2708';
+function PinGate({onUnlock}) {
+  const [pin, setPin] = useState('');
+  const [error, setError] = useState(false);
+
+  const handleDigit = (d) => {
+    if (pin.length >= 4) return;
+    const next = pin + d;
+    setPin(next);
+    setError(false);
+    if (next.length === 4) {
+      setTimeout(() => {
+        if (next === PIN) {
+          localStorage.setItem('bb_auth', Date.now().toString());
+          onUnlock();
+        } else {
+          setError(true);
+          setTimeout(() => { setPin(''); setError(false); }, 800);
+        }
+      }, 120);
+    }
+  };
+
+  const btnStyle = {padding:'18px 0',fontSize:22,fontWeight:700,background:'#fff',border:'2px solid var(--gray-200)',borderRadius:12,cursor:'pointer',fontFamily:'inherit',transition:'background .12s,border-color .12s'};
+
+  return (
+    <div style={{display:'flex',alignItems:'center',justifyContent:'center',minHeight:'100vh',background:'var(--gray-50)'}}>
+      <div className="card" style={{maxWidth:300,width:'100%',padding:'36px 28px',textAlign:'center'}}>
+        <div style={{fontSize:44,marginBottom:12}}>🍹</div>
+        <div style={{fontSize:20,fontWeight:800,marginBottom:4}}>שקיות קוקטייל</div>
+        <div style={{fontSize:13,color:'var(--gray-500)',marginBottom:24}}>הזן קוד PIN</div>
+        <div style={{display:'flex',justifyContent:'center',gap:14,marginBottom:24}}>
+          {[0,1,2,3].map(i=>(
+            <div key={i} style={{width:14,height:14,borderRadius:'50%',background: i<pin.length ? (error?'var(--red)':'var(--primary)') : 'var(--gray-200)',transition:'background .15s'}}/>
+          ))}
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'repeat(3,1fr)',gap:10,marginBottom:10,direction:'ltr'}}>
+          {[1,2,3,4,5,6,7,8,9].map(d=>(
+            <button key={d} style={btnStyle} onClick={()=>handleDigit(String(d))}
+              onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--primary)';e.currentTarget.style.background='#f5f3ff';}}
+              onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--gray-200)';e.currentTarget.style.background='#fff';}}
+            >{d}</button>
+          ))}
+        </div>
+        <div style={{display:'grid',gridTemplateColumns:'1fr 1fr 1fr',gap:10,direction:'ltr'}}>
+          <div/>
+          <button style={btnStyle} onClick={()=>handleDigit('0')}
+            onMouseEnter={e=>{e.currentTarget.style.borderColor='var(--primary)';e.currentTarget.style.background='#f5f3ff';}}
+            onMouseLeave={e=>{e.currentTarget.style.borderColor='var(--gray-200)';e.currentTarget.style.background='#fff';}}
+          >0</button>
+          <button onClick={()=>setPin(p=>p.slice(0,-1))} style={{...btnStyle,background:'transparent',border:'2px solid transparent',color:'var(--gray-400)',fontSize:20}}>⌫</button>
+        </div>
+        {error && <div style={{color:'var(--red)',fontSize:13,marginTop:16,fontWeight:600}}>❌ קוד שגוי</div>}
+      </div>
+    </div>
+  );
+}
+
 // ── Main App ──
 function App() {
   const [db, setDb] = useState(() => {
@@ -1793,6 +1852,7 @@ function App() {
   const [monthlySettings, setMonthlySettings] = useState({});
   const [settings, setSettings] = useState({marketing: 2500, extraItems: [], monthlyFixed: 0});
   const [loading, setLoading] = useState(false);
+  const [unlocked, setUnlocked] = useState(() => !!localStorage.getItem('bb_auth'));
   const [connected, setConnected] = useState(false);
   const [tab, setTab] = useState('dashboard');
   const [showForm, setShowForm] = useState(false);
@@ -1977,6 +2037,8 @@ function App() {
   // ── Backup / Restore ──
   const backupInputRef = useRef(null);
 
+  if (!unlocked) return <PinGate onUnlock={()=>setUnlocked(true)}/>;
+
   if (!db) return <div className="loading"><div className="spinner"/></div>;
 
   if (loading) return (
@@ -2060,6 +2122,7 @@ function App() {
             <button className="btn btn-outline btn-sm" title="שחזור מגיבוי" onClick={()=>backupInputRef.current?.click()}>📂 שחזר</button>
             <input ref={backupInputRef} type="file" accept=".json" style={{display:'none'}} onChange={handleImportBackup}/>
             <button className="btn btn-white" onClick={handleAdd}>+ הזמנה חדשה</button>
+            <button className="btn btn-ghost btn-sm" title="יציאה" onClick={()=>{localStorage.removeItem('bb_auth');setUnlocked(false);}}>🔒</button>
           </div>
         </div>
       </header>
