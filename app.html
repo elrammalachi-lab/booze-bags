@@ -1974,6 +1974,9 @@ function App() {
   const handleAdd = () => { setEditing(null); setShowForm(true); };
   const handleClose = () => { setShowForm(false); setEditing(null); };
 
+  // ── Backup / Restore ──
+  const backupInputRef = useRef(null);
+
   if (!db) return <div className="loading"><div className="spinner"/></div>;
 
   if (loading) return (
@@ -1982,9 +1985,6 @@ function App() {
       <div style={{color:'var(--gray-500)',fontSize:14}}>מתחבר לענן...</div>
     </div>
   );
-
-  // ── Backup / Restore ──
-  const backupInputRef = React.useRef(null);
 
   const handleExportBackup = () => {
     const data = {
