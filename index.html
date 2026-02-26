@@ -1983,6 +1983,57 @@ function App() {
     </div>
   );
 
+  // ── Backup / Restore ──
+  const backupInputRef = React.useRef(null);
+
+  const handleExportBackup = () => {
+    const data = {
+      exportedAt: new Date().toISOString(),
+      version: 1,
+      orders,
+      transactions,
+      calendarEvents,
+      monthlyExpenses,
+      monthlySettings,
+    };
+    const blob = new Blob([JSON.stringify(data, null, 2)], {type:'application/json'});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `booze-bags-backup-${new Date().toISOString().split('T')[0]}.json`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImportBackup = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = '';
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        const date = data.exportedAt ? new Date(data.exportedAt).toLocaleDateString('he-IL', {day:'2-digit',month:'2-digit',year:'numeric',hour:'2-digit',minute:'2-digit'}) : 'לא ידוע';
+        const ordersCount = data.orders?.length || 0;
+        const txCount = data.transactions?.length || 0;
+        if (!window.confirm(`⚠️ שחזור גיבוי מ-${date}\n\nהגיבוי מכיל:\n• ${ordersCount} הזמנות\n• ${txCount} רשומות פיננסיות\n\nהנתונים הנוכחיים יידרסו לחלוטין!\nהאם להמשיך?`)) return;
+        if (!db) return;
+        const toObj = (arr) => { const o={}; (arr||[]).forEach(item=>{const{id,...rest}=item; if(id)o[id]=rest;}); return o; };
+        if (data.orders?.length)        db.ref('orders').set(toObj(data.orders));
+        if (data.transactions?.length)  db.ref('transactions').set(toObj(data.transactions));
+        if (data.calendarEvents?.length)db.ref('calendarEvents').set(toObj(data.calendarEvents));
+        if (data.monthlyExpenses)       db.ref('monthlyExpenses').set(data.monthlyExpenses);
+        if (data.monthlySettings)       db.ref('monthlySettings').set(data.monthlySettings);
+        alert('✅ הגיבוי שוחזר בהצלחה!');
+      } catch(err) {
+        alert('❌ שגיאה בקריאת קובץ הגיבוי — ודא שמדובר בקובץ גיבוי תקין');
+      }
+    };
+    reader.readAsText(file);
+  };
+
   const TABS = [
     {id:'dashboard', label:'📊  דשבורד'},
     {id:'orders',    label:'📋  הזמנות'},
@@ -2004,7 +2055,12 @@ function App() {
               <div className="hdr-sub">שקיות קוקטייל לאירועים {connected?'• מחובר לענן ☁️':'• מנותק'}</div>
             </div>
           </div>
-          <button className="btn btn-white" onClick={handleAdd}>+ הזמנה חדשה</button>
+          <div style={{display:'flex',gap:8,alignItems:'center'}}>
+            <button className="btn btn-outline btn-sm" title="גיבוי — הורדת כל הנתונים כ-JSON" onClick={handleExportBackup}>💾 גיבוי</button>
+            <button className="btn btn-outline btn-sm" title="שחזור מגיבוי" onClick={()=>backupInputRef.current?.click()}>📂 שחזר</button>
+            <input ref={backupInputRef} type="file" accept=".json" style={{display:'none'}} onChange={handleImportBackup}/>
+            <button className="btn btn-white" onClick={handleAdd}>+ הזמנה חדשה</button>
+          </div>
         </div>
       </header>
 
