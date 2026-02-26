@@ -1556,10 +1556,18 @@ function OrderForm({order, onSave, onClose}) {
 }
 
 // ── Monthly Stats ──
-function MonthlyStats({orders, transactions, settings, onUpdateSettings, monthlyExpenses, onAddMonthlyExpense, onDeleteMonthlyExpense, monthlySettings, onUpdateMonthlySetting}) {
+function MonthlyStats({orders, transactions, settings, onUpdateSettings, monthlyExpenses, onAddMonthlyExpense, onDeleteMonthlyExpense, monthlySettings, onUpdateMonthlySetting, onAddCostItem, onDeleteCostItem}) {
   const [addingFor, setAddingFor] = useState(null); // ym string
   const [newExpLabel, setNewExpLabel] = useState('');
   const [newExpAmount, setNewExpAmount] = useState('');
+  const [addingCostFor, setAddingCostFor] = useState(null); // ym string for cost breakdown
+  const [newCostLabel, setNewCostLabel] = useState('');
+  const [newCostAmount, setNewCostAmount] = useState('');
+  const handleAddCostItem = (ym) => {
+    if(!newCostLabel.trim()||!newCostAmount) return;
+    onAddCostItem(ym, {label:newCostLabel.trim(), amount:Number(newCostAmount)||0});
+    setNewCostLabel(''); setNewCostAmount(''); setAddingCostFor(null);
+  };
 
   const monthly = useMemo(()=>{
     const m={};
@@ -1602,8 +1610,12 @@ function MonthlyStats({orders, transactions, settings, onUpdateSettings, monthly
         const ms = monthlySettings[m.ym] || {};
         const costPerBag = ms.costPerBag !== undefined ? Number(ms.costPerBag) : BAG_COST_PER_UNIT;
         const monthMarketing = ms.marketing !== undefined ? Number(ms.marketing) : 0;
-        // עלות ייצור חודשית לפי ה-costPerBag של החודש
-        const prodCost = m.bags * costPerBag;
+        // פירוט עלות ייצור
+        const breakdownRaw = ms.costBreakdown || {};
+        const breakdownList = Object.entries(breakdownRaw).map(([id,e])=>({...e,id}));
+        const breakdownTotal = breakdownList.reduce((a,e)=>a+(Number(e.amount)||0),0);
+        const prodCost = breakdownList.length > 0 ? breakdownTotal : m.bags * costPerBag;
+        const effectiveCostPerBag = m.bags > 0 ? prodCost / m.bags : 0;
         // הוצאות ידניות לחודש זה
         const meRaw = monthlyExpenses[m.ym] || {};
         const meList = Object.entries(meRaw).map(([id,e])=>({...e,id}));
@@ -1630,21 +1642,40 @@ function MonthlyStats({orders, transactions, settings, onUpdateSettings, monthly
               </div>
             </div>
 
-            {/* הגדרות חודשיות — עלות לשקית + שיווק */}
-            <div style={{padding:'10px 20px',background:'var(--gray-50)',borderBottom:'1px solid var(--gray-100)',display:'flex',gap:24,flexWrap:'wrap',alignItems:'center'}}>
-              <div style={{display:'flex',alignItems:'center',gap:8}}>
-                <span style={{fontSize:13,fontWeight:600,color:'var(--gray-600)'}}>🛍️ עלות לשקית:</span>
-                <span style={{fontSize:12,color:'var(--gray-400)'}}>₪</span>
-                <input
-                  type="number" min="0" step="0.5"
-                  value={costPerBag}
-                  onChange={e=>onUpdateMonthlySetting(m.ym,'costPerBag',Number(e.target.value)||0)}
-                  style={{width:64,padding:'4px 8px',border:'1.5px solid var(--gray-200)',borderRadius:6,fontSize:13,textAlign:'right',fontFamily:'inherit'}}
-                  dir="ltr"
-                />
-                <span style={{fontSize:12,color:'var(--gray-400)'}}>× {m.bags} = <strong style={{color:'var(--red)'}}>-{fmt(prodCost)}</strong></span>
+            {/* הגדרות חודשיות — עלות ייצור (פירוט) + שיווק */}
+            <div style={{padding:'12px 20px',background:'var(--gray-50)',borderBottom:'1px solid var(--gray-100)'}}>
+              {/* עלות ייצור - breakdown */}
+              <div style={{marginBottom:8}}>
+                <div style={{display:'flex',justifyContent:'space-between',alignItems:'center',marginBottom:breakdownList.length>0?6:0}}>
+                  <span style={{fontSize:13,fontWeight:600,color:'var(--gray-600)'}}>🛍️ עלות ייצור (פירוט):</span>
+                  <div style={{display:'flex',alignItems:'center',gap:10}}>
+                    {prodCost>0 && <span style={{fontSize:12,color:'var(--red)',fontWeight:700}}>סה״כ: -{fmt(prodCost)}{m.bags>0?` · ₪${effectiveCostPerBag.toFixed(1)}/שקית`:''}</span>}
+                    <button className="btn btn-outline btn-sm" style={{fontSize:11,padding:'3px 10px'}} onClick={()=>setAddingCostFor(p=>p===m.ym?null:m.ym)}>+ הוסף</button>
+                  </div>
+                </div>
+                {breakdownList.map(item=>(
+                  <div key={item.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:13,padding:'3px 0'}}>
+                    <span style={{color:'var(--gray-700)'}}>• {item.label}</span>
+                    <div style={{display:'flex',alignItems:'center',gap:8}}>
+                      <span style={{color:'var(--red)',fontWeight:600}}>-{fmt(item.amount)}</span>
+                      <button className="btn-del" style={{padding:'2px 6px',fontSize:11}} onClick={()=>onDeleteCostItem(m.ym,item.id)}>🗑️</button>
+                    </div>
+                  </div>
+                ))}
+                {addingCostFor===m.ym && (
+                  <div style={{display:'flex',gap:8,marginTop:6,alignItems:'center',flexWrap:'wrap'}}>
+                    <input className="finp" placeholder="קטגוריה (מפעל, קוקטייל...)" value={newCostLabel} onChange={e=>setNewCostLabel(e.target.value)} style={{flex:2,minWidth:120,fontSize:13,padding:'6px 10px'}}/>
+                    <input className="finp" type="number" placeholder="סכום ₪" value={newCostAmount} onChange={e=>setNewCostAmount(e.target.value)} style={{flex:1,minWidth:80,fontSize:13,padding:'6px 10px'}} dir="ltr"/>
+                    <button className="btn btn-violet btn-sm" onClick={()=>handleAddCostItem(m.ym)}>הוסף</button>
+                    <button className="btn btn-outline btn-sm" onClick={()=>{setAddingCostFor(null);setNewCostLabel('');setNewCostAmount('');}}>ביטול</button>
+                  </div>
+                )}
+                {breakdownList.length===0 && addingCostFor!==m.ym && (
+                  <div style={{fontSize:12,color:'var(--gray-400)',marginTop:2}}>לחץ "+ הוסף" לפירוט עלות ייצור לפי קטגוריות</div>
+                )}
               </div>
-              <div style={{display:'flex',alignItems:'center',gap:8}}>
+              {/* שיווק */}
+              <div style={{display:'flex',alignItems:'center',gap:8,paddingTop:8,borderTop:'1px solid var(--gray-200)'}}>
                 <span style={{fontSize:13,fontWeight:600,color:'var(--gray-600)'}}>📣 שיווק:</span>
                 <span style={{fontSize:12,color:'var(--gray-400)'}}>₪</span>
                 <input
@@ -1668,7 +1699,11 @@ function MonthlyStats({orders, transactions, settings, onUpdateSettings, monthly
             {/* פירוט הוצאות */}
             <div style={{padding:'10px 20px',borderTop:'1px solid var(--gray-100)',display:'flex',flexDirection:'column',gap:4}}>
               <div style={{fontSize:12,fontWeight:700,color:'var(--gray-400)',marginBottom:4}}>פירוט הוצאות החודש</div>
-              <div style={{display:'flex',justifyContent:'space-between',fontSize:13}}><span style={{color:'var(--gray-600)'}}>🏭 עלות ייצור ({m.bags} שקיות × ₪{costPerBag})</span><span style={{color:'var(--red)',fontWeight:600}}>-{fmt(prodCost)}</span></div>
+              {breakdownList.length>0 ? breakdownList.map(item=>(
+                <div key={item.id} style={{display:'flex',justifyContent:'space-between',fontSize:13}}><span style={{color:'var(--gray-600)'}}>🏭 {item.label}</span><span style={{color:'var(--red)',fontWeight:600}}>-{fmt(item.amount)}</span></div>
+              )) : (
+                <div style={{display:'flex',justifyContent:'space-between',fontSize:13}}><span style={{color:'var(--gray-600)'}}>🏭 עלות ייצור ({m.bags} שקיות × ₪{costPerBag})</span><span style={{color:'var(--red)',fontWeight:600}}>-{fmt(prodCost)}</span></div>
+              )}
               {monthMarketing>0 && <div style={{display:'flex',justifyContent:'space-between',fontSize:13}}><span style={{color:'var(--gray-600)'}}>📣 שיווק</span><span style={{color:'var(--red)',fontWeight:600}}>-{fmt(monthMarketing)}</span></div>}
               {txExp.map(t=>(
                 <div key={t.id} style={{display:'flex',justifyContent:'space-between',fontSize:13}}>
@@ -1712,7 +1747,7 @@ function MonthlyStats({orders, transactions, settings, onUpdateSettings, monthly
               <thead><tr><th>לקוח</th><th>סוג אירוע</th><th>שקיות</th><th>מחיר חבילה</th><th>תוספות</th><th>הכנסה</th><th>עלות ייצור</th><th>רווח גולמי</th><th>סגר</th><th>סטטוס</th></tr></thead>
               <tbody>{[...m.orders].sort((a,b)=>new Date(a.eventDate)-new Date(b.eventDate)).map(o=>{
                 const rev=revenue(o);
-                const oCost=(Number(o.bagCount)||0)*costPerBag;
+                const oCost=(Number(o.bagCount)||0)*effectiveCostPerBag;
                 const prof=rev-oCost;
                 return(
                 <tr key={o.id}>
@@ -1893,6 +1928,15 @@ function App() {
     db.ref(`monthlySettings/${ym}`).update({[key]: value});
   };
 
+  const handleAddMonthlyCostItem = (ym, item) => {
+    if (!db) return;
+    db.ref(`monthlySettings/${ym}/costBreakdown`).push(item);
+  };
+  const handleDeleteMonthlyCostItem = (ym, id) => {
+    if (!db) return;
+    db.ref(`monthlySettings/${ym}/costBreakdown/${id}`).remove();
+  };
+
   // Monthly expenses handlers
   const handleAddMonthlyExpense = (ym, item) => {
     if (!db) return;
@@ -1963,7 +2007,7 @@ function App() {
       <main className="main">
         {tab==='dashboard' && <Dashboard orders={orders} settings={settings} onUpdateSettings={handleUpdateSettings} onAdd={handleAdd} onEdit={handleEdit}/>}
         {tab==='orders'    && <OrdersTable orders={filtered} allOrders={orders} filters={filters} onFilter={setFilters} onEdit={handleEdit} onDelete={handleDelete} onAdd={handleAdd} onQuickUpdate={handleQuickUpdate}/>}
-        {tab==='monthly'   && <MonthlyStats orders={orders} transactions={transactions} settings={settings} onUpdateSettings={handleUpdateSettings} monthlyExpenses={monthlyExpenses} onAddMonthlyExpense={handleAddMonthlyExpense} onDeleteMonthlyExpense={handleDeleteMonthlyExpense} monthlySettings={monthlySettings} onUpdateMonthlySetting={handleUpdateMonthlySetting}/>}
+        {tab==='monthly'   && <MonthlyStats orders={orders} transactions={transactions} settings={settings} onUpdateSettings={handleUpdateSettings} monthlyExpenses={monthlyExpenses} onAddMonthlyExpense={handleAddMonthlyExpense} onDeleteMonthlyExpense={handleDeleteMonthlyExpense} monthlySettings={monthlySettings} onUpdateMonthlySetting={handleUpdateMonthlySetting} onAddCostItem={handleAddMonthlyCostItem} onDeleteCostItem={handleDeleteMonthlyCostItem}/>}
         {tab==='calendar'  && <CalendarView orders={orders} calendarEvents={calendarEvents} onEdit={handleEdit} onAddCalEvent={handleAddCalEvent} onEditCalEvent={handleEditCalEvent} onDeleteCalEvent={handleDeleteCalEvent}/>}
         {tab==='bags'      && <BagsView orders={orders} onUpdateBag={handleUpdateBag} onAddBag={handleAddBag}/>}
         {tab==='delivery'  && <DeliveryView orders={orders} onQuickUpdate={handleQuickUpdate}/>}
