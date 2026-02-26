@@ -1889,7 +1889,9 @@ function App() {
     if (!db) return;
     const ordersRef = db.ref('orders');
     if (editing) {
-      ordersRef.child(editing.id).set({...data, createdAt: editing.createdAt || new Date().toISOString()});
+      // spread existing order first so delivery/bag fields aren't wiped, then apply form data on top
+      const {id: _id, ...existing} = editing;
+      ordersRef.child(editing.id).set({...existing, ...data, createdAt: editing.createdAt || new Date().toISOString()});
     } else {
       ordersRef.push({...data, createdAt: new Date().toISOString()});
     }
