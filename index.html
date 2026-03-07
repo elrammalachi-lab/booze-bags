@@ -1736,7 +1736,7 @@ function MonthlyStats({orders, transactions, settings, onUpdateSettings, monthly
         const onetimeFixed = feArr.filter(e=>!e.isRecurring&&e.month===m.ym).reduce((s,e)=>s+(Number(e.amount)||0),0);
         const totalFixed = recurringFixed + onetimeFixed;
         // סה״כ הוצאות ורווח נקי
-        const totalExp = prodCost + monthMarketing + meTotal + txTotal + totalFixed;
+        const totalExp = prodCost + monthMarketing + meTotal + totalFixed;
         const netProfit = m.rev - totalExp;
         const monthMargin = m.rev>0?Math.round(netProfit/m.rev*100):0;
 
@@ -1804,7 +1804,7 @@ function MonthlyStats({orders, transactions, settings, onUpdateSettings, monthly
             <div className="mini-stats">
               <div className="mini-item"><div className="mini-lbl">💰 הכנסות</div><div className="mini-val v-cyan">{fmt(m.rev)}</div></div>
               <div className="mini-item"><div className="mini-lbl">🏭 עלות ייצור</div><div className="mini-val v-red">-{fmt(prodCost)}</div></div>
-              <div className="mini-item"><div className="mini-lbl">📋 שיווק + הוצאות</div><div className="mini-val v-red">{monthMarketing+meTotal+txTotal>0?`-${fmt(monthMarketing+meTotal+txTotal)}`:'—'}</div></div>
+              <div className="mini-item"><div className="mini-lbl">📋 שיווק + הוצאות</div><div className="mini-val v-red">{monthMarketing+meTotal>0?`-${fmt(monthMarketing+meTotal)}`:'—'}</div></div>
               {recurringFixed>0 && <div className="mini-item"><div className="mini-lbl">🔄 הוצאות חוזרות</div><div className="mini-val v-red">-{fmt(recurringFixed)}</div></div>}
               {onetimeFixed>0  && <div className="mini-item"><div className="mini-lbl">1️⃣ הד-פעמיות</div><div className="mini-val v-red">-{fmt(onetimeFixed)}</div></div>}
               <div className="mini-item"><div className="mini-lbl">🏆 רווח נקי</div><div className="mini-val" style={{color:netProfit>=0?'var(--green)':'var(--red)',fontWeight:800}}>{fmt(netProfit)}</div></div>
@@ -1819,12 +1819,6 @@ function MonthlyStats({orders, transactions, settings, onUpdateSettings, monthly
                 <div style={{display:'flex',justifyContent:'space-between',fontSize:13}}><span style={{color:'var(--gray-600)'}}>🏭 עלות ייצור ({m.bags} שקיות × ₪{costPerBag})</span><span style={{color:'var(--red)',fontWeight:600}}>-{fmt(prodCost)}</span></div>
               )}
               {monthMarketing>0 && <div style={{display:'flex',justifyContent:'space-between',fontSize:13}}><span style={{color:'var(--gray-600)'}}>📣 שיווק</span><span style={{color:'var(--red)',fontWeight:600}}>-{fmt(monthMarketing)}</span></div>}
-              {txExp.map(t=>(
-                <div key={t.id} style={{display:'flex',justifyContent:'space-between',fontSize:13}}>
-                  <span style={{color:'var(--gray-600)'}}>💳 {t.description||'הוצאה'}</span>
-                  <span style={{color:'var(--red)',fontWeight:600}}>-{fmt(t.amount)}</span>
-                </div>
-              ))}
               {meList.map(e=>(
                 <div key={e.id} style={{display:'flex',justifyContent:'space-between',alignItems:'center',fontSize:13}}>
                   <span style={{color:'var(--gray-600)'}}>📌 {e.label}</span>
