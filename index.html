@@ -736,9 +736,41 @@ function CalendarView({orders, calendarEvents, onEdit, onAddCalEvent, onEditCalE
 }
 
 // ── Transactions View ──
-function TransactionsView({transactions, onAdd, onDelete, onUpdate}) {
+function TransactionsView({transactions, onAdd, onDelete, onUpdate, fixedExpenses, onAddFixedExpense, onDeleteFixedExpense}) {
   const [showForm, setShowForm] = useState(false);
   const today = new Date().toISOString().split('T')[0];
+  const currentYM = () => { const n=new Date(); return `${n.getFullYear()}-${String(n.getMonth()+1).padStart(2,'0')}`; };
+  const MONTH_NAMES_FE = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
+  const fmtMonth = (ym) => { if(!ym)return'—'; const[y,m]=ym.split('-'); return `${MONTH_NAMES_FE[parseInt(m)-1]} ${y}`; };
+
+  // Fixed expenses UI state
+  const [showRecForm, setShowRecForm] = useState(false);
+  const [showOneForm, setShowOneForm] = useState(false);
+  const [recForm, setRecForm] = useState({name:'', amount:'', startMonth:currentYM(), endMonth:'', category:''});
+  const [oneForm, setOneForm] = useState({name:'', amount:'', month:currentYM(), category:''});
+  const setRF = (k,v) => setRecForm(p=>({...p,[k]:v}));
+  const setOF = (k,v) => setOneForm(p=>({...p,[k]:v}));
+  const FE_CATS = ['שיווק / פרסום','שכירות / אחסון','עמלות (Stripe, פייפאל)','ציוד','הוצאות משרד','אחר'];
+
+  const handleAddRec = (e) => {
+    e.preventDefault();
+    if (!recForm.name.trim() || !recForm.amount) return;
+    onAddFixedExpense({name:recForm.name.trim(), amount:Number(recForm.amount), isRecurring:true, startMonth:recForm.startMonth, endMonth:recForm.endMonth||null, month:null, category:recForm.category});
+    setRecForm({name:'', amount:'', startMonth:currentYM(), endMonth:'', category:''});
+    setShowRecForm(false);
+  };
+  const handleAddOne = (e) => {
+    e.preventDefault();
+    if (!oneForm.name.trim() || !oneForm.amount) return;
+    onAddFixedExpense({name:oneForm.name.trim(), amount:Number(oneForm.amount), isRecurring:false, startMonth:null, endMonth:null, month:oneForm.month, category:oneForm.category});
+    setOneForm({name:'', amount:'', month:currentYM(), category:''});
+    setShowOneForm(false);
+  };
+
+  const recurringList = fixedExpenses.filter(e=>e.isRecurring);
+  const onetimeList   = fixedExpenses.filter(e=>!e.isRecurring);
+  const ym = currentYM();
+  const monthlyRecurringTotal = recurringList.filter(e=>e.startMonth<=ym&&(!e.endMonth||e.endMonth>=ym)).reduce((s,e)=>s+(Number(e.amount)||0),0);
   const [form, setForm] = useState({type:'income', description:'', amount:'', who:'מלאכי', date:today});
   const setF = (k,v) => setForm(p=>({...p,[k]:v}));
   const [editTx, setEditTx] = useState(null); // transaction being edited
@@ -775,6 +807,80 @@ function TransactionsView({transactions, onAdd, onDelete, onUpdate}) {
 
   return (
     <div style={{display:'flex',flexDirection:'column',gap:16}}>
+
+      {/* ══ הוצאות קבועות ══ */}
+      <div style={{display:'grid',gridTemplateColumns:'1fr 1fr',gap:16}}>
+
+        {/* הוצאות חוזרות */}
+        <div className="card" style={{borderTop:'4px solid var(--primary)'}}>
+          <div className="card-hdr">
+            <span className="card-title">🔄 הוצאות קבועות חוזרות</span>
+            <button className="btn btn-violet btn-sm" onClick={()=>setShowRecForm(p=>!p)}>+ הוסף</button>
+          </div>
+          <div style={{padding:'4px 20px 8px',fontSize:12,color:'var(--gray-400)'}}>מתווספות אוטומטית לכל חודש בסיכום החודשי · סה״כ חודשי: <strong style={{color:'var(--red)'}}>{fmt(monthlyRecurringTotal)}</strong></div>
+          {showRecForm && (
+            <form onSubmit={handleAddRec} style={{padding:'12px 16px',borderBottom:'1px solid var(--gray-200)',background:'var(--gray-50)',display:'flex',flexWrap:'wrap',gap:8,alignItems:'flex-end'}}>
+              <div className="fgroup" style={{flex:2,minWidth:120}}><label className="flbl">שם *</label><input className="finp" placeholder="לדוגמה: שיווק פייסבוק" value={recForm.name} onChange={e=>setRF('name',e.target.value)} required/></div>
+              <div className="fgroup" style={{minWidth:90}}><label className="flbl">סכום ₪ *</label><input className="finp" type="number" min="1" placeholder="0" value={recForm.amount} onChange={e=>setRF('amount',e.target.value)} required dir="ltr" style={{textAlign:'right'}}/></div>
+              <div className="fgroup" style={{minWidth:120}}><label className="flbl">מ-חודש *</label><input className="finp" type="month" value={recForm.startMonth} onChange={e=>setRF('startMonth',e.target.value)}/></div>
+              <div className="fgroup" style={{minWidth:120}}><label className="flbl">עד חודש (ריק=ללא הגבלה)</label><input className="finp" type="month" value={recForm.endMonth} onChange={e=>setRF('endMonth',e.target.value)}/></div>
+              <div className="fgroup" style={{minWidth:130}}><label className="flbl">קטגוריה</label><select className="fsel" value={recForm.category} onChange={e=>setRF('category',e.target.value)}><option value="">— בחר —</option>{FE_CATS.map(c=><option key={c} value={c}>{c}</option>)}</select></div>
+              <div style={{display:'flex',gap:8,paddingBottom:2}}><button type="submit" className="btn btn-violet btn-sm">שמור</button><button type="button" className="btn btn-outline btn-sm" onClick={()=>setShowRecForm(false)}>ביטול</button></div>
+            </form>
+          )}
+          {recurringList.length===0 ? (
+            <div className="empty" style={{padding:'20px'}}><div className="empty-icon" style={{fontSize:28}}>🔄</div><p className="empty-txt" style={{fontSize:13}}>אין הוצאות חוזרות</p></div>
+          ) : (
+            <div className="tbl-wrap"><table>
+              <thead><tr><th>שם</th><th>סכום/חודש</th><th>מ-חודש</th><th>עד חודש</th><th></th></tr></thead>
+              <tbody>{recurringList.map(e=>{
+                const active=!e.endMonth||e.endMonth>=ym;
+                return(<tr key={e.id}>
+                  <td className="td-b">{e.name}{e.category?<span style={{fontSize:11,color:'var(--gray-400)',marginRight:6}}>{e.category}</span>:null}</td>
+                  <td style={{color:'var(--red)',fontWeight:700}}>{fmt(e.amount)}</td>
+                  <td style={{fontSize:12}}>{fmtMonth(e.startMonth)}</td>
+                  <td style={{fontSize:12}}>{e.endMonth?fmtMonth(e.endMonth):<span style={{color:'var(--green)',fontSize:12}}>ללא הגבלה</span>}</td>
+                  <td><button className="btn-del" onClick={()=>onDeleteFixedExpense(e.id)}>🗑️</button></td>
+                </tr>);
+              })}</tbody>
+            </table></div>
+          )}
+        </div>
+
+        {/* הוצאות חד-פעמיות */}
+        <div className="card" style={{borderTop:'4px solid var(--cyan)'}}>
+          <div className="card-hdr">
+            <span className="card-title">1️⃣ הוצאות קבועות חד-פעמיות</span>
+            <button className="btn btn-outline btn-sm" onClick={()=>setShowOneForm(p=>!p)}>+ הוסף</button>
+          </div>
+          <div style={{padding:'4px 20px 8px',fontSize:12,color:'var(--gray-400)'}}>מופיעות בחודש ספציפי בלבד בסיכום החודשי</div>
+          {showOneForm && (
+            <form onSubmit={handleAddOne} style={{padding:'12px 16px',borderBottom:'1px solid var(--gray-200)',background:'var(--gray-50)',display:'flex',flexWrap:'wrap',gap:8,alignItems:'flex-end'}}>
+              <div className="fgroup" style={{flex:2,minWidth:120}}><label className="flbl">שם *</label><input className="finp" placeholder="לדוגמה: קמפיין מרץ" value={oneForm.name} onChange={e=>setOF('name',e.target.value)} required/></div>
+              <div className="fgroup" style={{minWidth:90}}><label className="flbl">סכום ₪ *</label><input className="finp" type="number" min="1" placeholder="0" value={oneForm.amount} onChange={e=>setOF('amount',e.target.value)} required dir="ltr" style={{textAlign:'right'}}/></div>
+              <div className="fgroup" style={{minWidth:130}}><label className="flbl">חודש *</label><input className="finp" type="month" value={oneForm.month} onChange={e=>setOF('month',e.target.value)}/></div>
+              <div className="fgroup" style={{minWidth:130}}><label className="flbl">קטגוריה</label><select className="fsel" value={oneForm.category} onChange={e=>setOF('category',e.target.value)}><option value="">— בחר —</option>{FE_CATS.map(c=><option key={c} value={c}>{c}</option>)}</select></div>
+              <div style={{display:'flex',gap:8,paddingBottom:2}}><button type="submit" className="btn btn-outline btn-sm">שמור</button><button type="button" className="btn btn-ghost btn-sm" onClick={()=>setShowOneForm(false)}>ביטול</button></div>
+            </form>
+          )}
+          {onetimeList.length===0 ? (
+            <div className="empty" style={{padding:'20px'}}><div className="empty-icon" style={{fontSize:28}}>1️⃣</div><p className="empty-txt" style={{fontSize:13}}>אין הוצאות חד-פעמיות</p></div>
+          ) : (
+            <div className="tbl-wrap"><table>
+              <thead><tr><th>שם</th><th>סכום</th><th>חודש</th><th></th></tr></thead>
+              <tbody>{[...onetimeList].sort((a,b)=>(b.month||'').localeCompare(a.month||'')).map(e=>(
+                <tr key={e.id}>
+                  <td className="td-b">{e.name}{e.category?<span style={{fontSize:11,color:'var(--gray-400)',marginRight:6}}>{e.category}</span>:null}</td>
+                  <td style={{color:'var(--red)',fontWeight:700}}>{fmt(e.amount)}</td>
+                  <td style={{fontSize:12}}>{fmtMonth(e.month)}</td>
+                  <td><button className="btn-del" onClick={()=>onDeleteFixedExpense(e.id)}>🗑️</button></td>
+                </tr>
+              ))}</tbody>
+            </table></div>
+          )}
+        </div>
+      </div>
+
       {/* Edit modal */}
       {editTx && (
         <div className="modal-overlay" onClick={()=>setEditTx(null)}>
@@ -1556,7 +1662,7 @@ function OrderForm({order, onSave, onClose}) {
 }
 
 // ── Monthly Stats ──
-function MonthlyStats({orders, transactions, settings, onUpdateSettings, monthlyExpenses, onAddMonthlyExpense, onDeleteMonthlyExpense, monthlySettings, onUpdateMonthlySetting, onAddCostItem, onDeleteCostItem}) {
+function MonthlyStats({orders, transactions, settings, onUpdateSettings, monthlyExpenses, onAddMonthlyExpense, onDeleteMonthlyExpense, monthlySettings, onUpdateMonthlySetting, onAddCostItem, onDeleteCostItem, fixedExpenses}) {
   const [addingFor, setAddingFor] = useState(null); // ym string
   const [newExpLabel, setNewExpLabel] = useState('');
   const [newExpAmount, setNewExpAmount] = useState('');
@@ -1623,8 +1729,14 @@ function MonthlyStats({orders, transactions, settings, onUpdateSettings, monthly
         // הוצאות מהטאב
         const txExp = txExpensesByMonth[m.ym] || [];
         const txTotal = txExp.reduce((a,t)=>a+(Number(t.amount)||0),0);
+        // הוצאות קבועות חוזרות
+        const feArr = fixedExpenses || [];
+        const recurringFixed = feArr.filter(e=>e.isRecurring&&e.startMonth<=m.ym&&(!e.endMonth||e.endMonth>=m.ym)).reduce((s,e)=>s+(Number(e.amount)||0),0);
+        // הוצאות קבועות חד-פעמיות
+        const onetimeFixed = feArr.filter(e=>!e.isRecurring&&e.month===m.ym).reduce((s,e)=>s+(Number(e.amount)||0),0);
+        const totalFixed = recurringFixed + onetimeFixed;
         // סה״כ הוצאות ורווח נקי
-        const totalExp = prodCost + monthMarketing + meTotal + txTotal;
+        const totalExp = prodCost + monthMarketing + meTotal + txTotal + totalFixed;
         const netProfit = m.rev - totalExp;
         const monthMargin = m.rev>0?Math.round(netProfit/m.rev*100):0;
 
@@ -1693,6 +1805,8 @@ function MonthlyStats({orders, transactions, settings, onUpdateSettings, monthly
               <div className="mini-item"><div className="mini-lbl">💰 הכנסות</div><div className="mini-val v-cyan">{fmt(m.rev)}</div></div>
               <div className="mini-item"><div className="mini-lbl">🏭 עלות ייצור</div><div className="mini-val v-red">-{fmt(prodCost)}</div></div>
               <div className="mini-item"><div className="mini-lbl">📋 שיווק + הוצאות</div><div className="mini-val v-red">{monthMarketing+meTotal+txTotal>0?`-${fmt(monthMarketing+meTotal+txTotal)}`:'—'}</div></div>
+              {recurringFixed>0 && <div className="mini-item"><div className="mini-lbl">🔄 הוצאות חוזרות</div><div className="mini-val v-red">-{fmt(recurringFixed)}</div></div>}
+              {onetimeFixed>0  && <div className="mini-item"><div className="mini-lbl">1️⃣ הד-פעמיות</div><div className="mini-val v-red">-{fmt(onetimeFixed)}</div></div>}
               <div className="mini-item"><div className="mini-lbl">🏆 רווח נקי</div><div className="mini-val" style={{color:netProfit>=0?'var(--green)':'var(--red)',fontWeight:800}}>{fmt(netProfit)}</div></div>
             </div>
 
@@ -1731,6 +1845,20 @@ function MonthlyStats({orders, transactions, settings, onUpdateSettings, monthly
               ) : (
                 <button className="btn btn-outline btn-sm" style={{alignSelf:'flex-start',marginTop:6,fontSize:12}} onClick={()=>setAddingFor(m.ym)}>+ הוסף הוצאה ידנית</button>
               )}
+              {/* הוצאות קבועות חוזרות */}
+              {recurringFixed>0 && (feArr.filter(e=>e.isRecurring&&e.startMonth<=m.ym&&(!e.endMonth||e.endMonth>=m.ym)).map(e=>(
+                <div key={e.id} style={{display:'flex',justifyContent:'space-between',fontSize:13}}>
+                  <span style={{color:'var(--gray-600)'}}>🔄 {e.name}{e.category?` (${e.category})`:''}</span>
+                  <span style={{color:'var(--red)',fontWeight:600}}>-{fmt(e.amount)}</span>
+                </div>
+              )))}
+              {/* הוצאות קבועות חד-פעמיות */}
+              {onetimeFixed>0 && (feArr.filter(e=>!e.isRecurring&&e.month===m.ym).map(e=>(
+                <div key={e.id} style={{display:'flex',justifyContent:'space-between',fontSize:13}}>
+                  <span style={{color:'var(--gray-600)'}}>1️⃣ {e.name}{e.category?` (${e.category})`:''}</span>
+                  <span style={{color:'var(--red)',fontWeight:600}}>-{fmt(e.amount)}</span>
+                </div>
+              )))}
               {/* שורת סיכום */}
               <div style={{display:'flex',justifyContent:'space-between',fontSize:14,fontWeight:800,marginTop:8,paddingTop:8,borderTop:'1px solid var(--gray-200)'}}>
                 <span>סה״כ הוצאות</span>
@@ -1849,6 +1977,7 @@ function App() {
   const [deliveries, setDeliveries] = useState([]);
   const [monthlyExpenses, setMonthlyExpenses] = useState({});
   const [monthlySettings, setMonthlySettings] = useState({});
+  const [fixedExpenses, setFixedExpenses] = useState([]);
   const [settings, setSettings] = useState({marketing: 2500, extraItems: [], monthlyFixed: 0});
   const [loading, setLoading] = useState(false);
   const [unlocked, setUnlocked] = useState(() => !!localStorage.getItem('bb_auth'));
@@ -1910,7 +2039,13 @@ function App() {
     const msRef = db.ref('monthlySettings');
     msRef.on('value', snap => setMonthlySettings(snap.val() || {}));
 
-    return () => { connRef.off(); ordersRef.off(); settingsRef.off(); txRef.off(); calRef.off(); delRef.off(); meRef.off(); msRef.off(); };
+    const feRef = db.ref('fixedExpenses');
+    feRef.on('value', snap => {
+      const data = snap.val() || {};
+      setFixedExpenses(Object.entries(data).map(([id, e]) => ({...e, id})));
+    });
+
+    return () => { connRef.off(); ordersRef.off(); settingsRef.off(); txRef.off(); calRef.off(); delRef.off(); meRef.off(); msRef.off(); feRef.off(); };
   }, [db]);
 
   const handleUpdateSettings = (newSettings) => {
@@ -2011,6 +2146,16 @@ function App() {
   const handleDeleteMonthlyExpense = (ym, id) => {
     if (!db) return;
     db.ref(`monthlyExpenses/${ym}/${id}`).remove();
+  };
+
+  // Fixed expenses handlers
+  const handleAddFixedExpense = (data) => {
+    if (!db) return;
+    db.ref('fixedExpenses').push({...data, createdAt: new Date().toISOString()});
+  };
+  const handleDeleteFixedExpense = (id) => {
+    if (!db) return;
+    if (window.confirm('למחוק הוצאה קבועה זו?')) db.ref('fixedExpenses').child(id).remove();
   };
 
   // Bag handlers
@@ -2135,11 +2280,11 @@ function App() {
       <main className="main">
         {tab==='dashboard' && <Dashboard orders={orders} settings={settings} onUpdateSettings={handleUpdateSettings} onAdd={handleAdd} onEdit={handleEdit}/>}
         {tab==='orders'    && <OrdersTable orders={filtered} allOrders={orders} filters={filters} onFilter={setFilters} onEdit={handleEdit} onDelete={handleDelete} onAdd={handleAdd} onQuickUpdate={handleQuickUpdate}/>}
-        {tab==='monthly'   && <MonthlyStats orders={orders} transactions={transactions} settings={settings} onUpdateSettings={handleUpdateSettings} monthlyExpenses={monthlyExpenses} onAddMonthlyExpense={handleAddMonthlyExpense} onDeleteMonthlyExpense={handleDeleteMonthlyExpense} monthlySettings={monthlySettings} onUpdateMonthlySetting={handleUpdateMonthlySetting} onAddCostItem={handleAddMonthlyCostItem} onDeleteCostItem={handleDeleteMonthlyCostItem}/>}
+        {tab==='monthly'   && <MonthlyStats orders={orders} transactions={transactions} settings={settings} onUpdateSettings={handleUpdateSettings} monthlyExpenses={monthlyExpenses} onAddMonthlyExpense={handleAddMonthlyExpense} onDeleteMonthlyExpense={handleDeleteMonthlyExpense} monthlySettings={monthlySettings} onUpdateMonthlySetting={handleUpdateMonthlySetting} onAddCostItem={handleAddMonthlyCostItem} onDeleteCostItem={handleDeleteMonthlyCostItem} fixedExpenses={fixedExpenses}/>}
         {tab==='calendar'  && <CalendarView orders={orders} calendarEvents={calendarEvents} onEdit={handleEdit} onAddCalEvent={handleAddCalEvent} onEditCalEvent={handleEditCalEvent} onDeleteCalEvent={handleDeleteCalEvent}/>}
         {tab==='bags'      && <BagsView orders={orders} onUpdateBag={handleUpdateBag} onAddBag={handleAddBag}/>}
         {tab==='delivery'  && <DeliveryView orders={orders} onQuickUpdate={handleQuickUpdate}/>}
-        {tab==='finance'   && <TransactionsView transactions={transactions} onAdd={handleAddTransaction} onDelete={handleDeleteTransaction} onUpdate={handleUpdateTransaction}/>}
+        {tab==='finance'   && <TransactionsView transactions={transactions} onAdd={handleAddTransaction} onDelete={handleDeleteTransaction} onUpdate={handleUpdateTransaction} fixedExpenses={fixedExpenses} onAddFixedExpense={handleAddFixedExpense} onDeleteFixedExpense={handleDeleteFixedExpense}/>}
       </main>
 
       {showForm && <OrderForm order={editing} onSave={handleSave} onClose={handleClose}/>}
