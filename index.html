@@ -1231,82 +1231,99 @@ function BagsView({orders, onUpdateBag, onAddBag}) {
   const exportToFactory = async () => {
     setExporting(true);
     try {
+      const today = new Date().toISOString().slice(0,10);
+      const fmtD = d => d ? new Date(d).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',year:'numeric'}) : '';
+
       // מיין: תאריך אירוע → לקוח → שקית
       const rows = [...allBags].sort((a,b)=>{
-        const dc = (a.eventDate||'').localeCompare(b.eventDate||'');
-        if (dc!==0) return dc;
-        const nc = (a.customerName||'').localeCompare(b.customerName||'');
-        if (nc!==0) return nc;
+        const dc=(a.eventDate||'').localeCompare(b.eventDate||''); if(dc) return dc;
+        const nc=(a.customerName||'').localeCompare(b.customerName||''); if(nc) return nc;
         return (Number(a.bagNum)||0)-(Number(b.bagNum)||0);
       });
 
-      const hasImages = rows.some(b=>b.imageUrl);
-      const today = new Date().toISOString().slice(0,10);
-
-      // ── בנה Excel ──
-      const headers = ['לקוח','תאריך אירוע','שקית #','צד א — מלל','מספר תמונה','צד ב — שמות','קוקטייל','צריך תאריך?','כמות',...(hasImages?['שם קובץ תמונה']:[])];
-      const imgNames = {};   // bagKey → filename
-      rows.forEach(b=>{
-        if (!b.imageUrl) return;
-        const key = `${b.orderId}_${b.bagNum}`;
-        imgNames[key] = `${sanitizeFilename(b.customerName)}-שקית${b.bagNum}.jpg`;
-      });
-
-      const data = [headers, ...rows.map(b=>{
-        const key = `${b.orderId}_${b.bagNum}`;
-        return [
-          b.customerName||'',
-          b.eventDate ? new Date(b.eventDate).toLocaleDateString('he-IL',{day:'2-digit',month:'2-digit',year:'numeric'}) : '',
-          b.bagNum||'',
-          b.phraseA||'',
-          b.imageNumA||'',
-          b.namesB||'',
-          b.cocktailB||'',
-          b.needsDate?'כן':'לא',
-          Number(b.quantity)||0,
-          ...(hasImages ? [imgNames[key]||''] : []),
-        ];
-      })];
-
+      // ── Excel ──
+      const headers = ['לקוח','תאריך אירוע','שקית #','צד א — מלל','מספר תמונה','צד ב — שמות','קוקטייל','צריך תאריך?','כמות'];
+      const data = [headers, ...rows.map(b=>[
+        b.customerName||'', fmtD(b.eventDate), b.bagNum||'',
+        b.phraseA||'', b.imageNumA||'', b.namesB||'', b.cocktailB||'',
+        b.needsDate?'כן':'לא', Number(b.quantity)||0,
+      ])];
       const ws = XLSX.utils.aoa_to_sheet(data);
-      ws['!cols'] = [{wch:20},{wch:14},{wch:8},{wch:30},{wch:12},{wch:30},{wch:16},{wch:12},{wch:8},{wch:26}];
+      ws['!cols'] = [{wch:20},{wch:14},{wch:8},{wch:32},{wch:12},{wch:32},{wch:18},{wch:12},{wch:8}];
       const wb = XLSX.utils.book_new();
       XLSX.utils.book_append_sheet(wb, ws, 'שקיות למפעל');
 
-      if (!hasImages) {
-        // ─ ללא תמונות: פשוט xlsx ─
-        XLSX.writeFile(wb, `שקיות-למפעל-${today}.xlsx`);
-        return;
-      }
-
-      // ─ עם תמונות: ZIP ─
-      const zip = new JSZip();
-      const imgFolder = zip.folder('תמונות');
-
-      // הוסף תמונות מ-base64 data URL
-      rows.filter(b=>b.imageUrl).forEach(b=>{
-        const key = `${b.orderId}_${b.bagNum}`;
-        const fname = imgNames[key];
-        try {
-          const base64 = dataUrlToBase64(b.imageUrl);
-          if (base64) imgFolder.file(fname, base64, {base64:true});
-        } catch { /* skip */ }
+      // ── HTML ויזואלי — כרטיס לכל שקית ──
+      // קבץ לפי הזמנה
+      const orderMap = {};
+      rows.forEach(b=>{
+        if (!orderMap[b.orderId]) {
+          const ord = orders.find(o=>o.id===b.orderId)||{};
+          orderMap[b.orderId] = {customerName:b.customerName, eventDate:b.eventDate, backImage:ord.backImage||'', bags:[]};
+        }
+        orderMap[b.orderId].bags.push(b);
       });
 
-      // הוסף Excel לZIP
+      const bagCard = (b) => `
+        <div class="bag-card">
+          <div class="bag-head">שקית #${b.bagNum||''}  ·  ${Number(b.quantity)||0} יחידות${b.needsDate?' · 📅 צריך תאריך':''}</div>
+          <div class="bag-body">
+            ${b.imageUrl ? `<div class="bag-img-wrap"><img src="${b.imageUrl}" class="bag-img"/><div class="img-lbl">תמונת לקוח</div></div>` : '<div class="bag-img-wrap no-img">אין תמונה</div>'}
+            <div class="bag-details">
+              ${b.phraseA   ? `<div class="det"><span class="det-lbl">📝 צד א — מלל</span><span class="det-val">${b.phraseA}</span></div>` : ''}
+              ${b.imageNumA ? `<div class="det"><span class="det-lbl">🔢 מספר תמונה</span><span class="det-val">${b.imageNumA}</span></div>` : ''}
+              ${b.namesB    ? `<div class="det"><span class="det-lbl">👥 צד ב — שמות</span><span class="det-val">${b.namesB}</span></div>` : ''}
+              ${b.cocktailB ? `<div class="det"><span class="det-lbl">🍸 קוקטייל</span><span class="det-val">${b.cocktailB}</span></div>` : ''}
+            </div>
+          </div>
+        </div>`;
+
+      const orderBlock = (grp) => `
+        <div class="order-block">
+          <div class="order-hdr">👤 ${grp.customerName} &nbsp;|&nbsp; 📅 ${fmtD(grp.eventDate)} &nbsp;|&nbsp; 🛍️ ${grp.bags.reduce((s,b)=>s+(Number(b.quantity)||0),0)} יחידות</div>
+          ${grp.backImage ? `<div class="back-section"><div class="back-lbl">🖼️ תמונת גב — אחידה לכל השקיות</div><img src="${grp.backImage}" class="back-img"/></div>` : ''}
+          ${grp.bags.map(bagCard).join('')}
+        </div>`;
+
+      const html = `<!DOCTYPE html><html dir="rtl" lang="he"><head><meta charset="UTF-8">
+<title>סיכום שקיות למפעל — ${today}</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:Arial,Helvetica,sans-serif;background:#f0f0f0;padding:24px;direction:rtl;color:#222}
+h1{text-align:center;font-size:22px;margin-bottom:24px;color:#333}
+.order-block{background:#fff;border-radius:12px;margin-bottom:28px;overflow:hidden;box-shadow:0 2px 10px rgba(0,0,0,.1);page-break-after:always}
+.order-hdr{background:#4f46e5;color:#fff;padding:12px 18px;font-size:16px;font-weight:700}
+.back-section{background:#eef0ff;padding:14px 18px;display:flex;align-items:center;gap:16px;border-bottom:1px solid #dde}
+.back-lbl{font-size:13px;font-weight:700;color:#4f46e5;min-width:180px}
+.back-img{width:140px;height:140px;object-fit:cover;border-radius:8px;border:2px solid #c7d2fe}
+.bag-card{border-top:1px solid #eee;padding:16px 18px}
+.bag-head{font-weight:700;color:#4f46e5;font-size:14px;margin-bottom:12px}
+.bag-body{display:flex;gap:18px;align-items:flex-start}
+.bag-img-wrap{width:160px;flex-shrink:0;text-align:center}
+.bag-img{width:160px;height:160px;object-fit:cover;border-radius:8px;border:2px solid #e5e7eb}
+.no-img{width:160px;height:160px;display:flex;align-items:center;justify-content:center;background:#f9f9f9;border:2px dashed #d1d5db;border-radius:8px;font-size:12px;color:#aaa}
+.img-lbl{font-size:11px;color:#888;margin-top:5px}
+.bag-details{flex:1}
+.det{margin-bottom:10px}
+.det-lbl{display:block;font-size:11px;color:#888;margin-bottom:2px}
+.det-val{font-size:15px;font-weight:600;line-height:1.4;white-space:pre-wrap}
+@media print{body{background:#fff;padding:0}.order-block{box-shadow:none;margin-bottom:0}}
+</style></head><body>
+<h1>📦 סיכום שקיות למפעל &mdash; ${today}</h1>
+${Object.values(orderMap).map(orderBlock).join('')}
+</body></html>`;
+
+      // ── ZIP ──
+      const zip = new JSZip();
+      zip.file(`סיכום-למפעל-${today}.html`, html);
       const excelBuf = XLSX.write(wb, {bookType:'xlsx', type:'array'});
       zip.file(`שקיות-למפעל-${today}.xlsx`, excelBuf);
 
-      // הורד ZIP
-      const zipBlob = await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:6}});
+      const zipBlob = await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:4}});
       const url = URL.createObjectURL(zipBlob);
-      const a = document.createElement('a');
-      a.href = url; a.download = `שקיות-למפעל-${today}.zip`;
-      a.click();
+      const a = document.createElement('a'); a.href=url; a.download=`שקיות-למפעל-${today}.zip`; a.click();
       URL.revokeObjectURL(url);
-    } finally {
-      setExporting(false);
-    }
+    } finally { setExporting(false); }
   };
 
   const openAdd = () => { setEditingBag(null); setShowModal(true); };
@@ -1693,7 +1710,7 @@ function OrdersTable({orders, allOrders, filters, onFilter, onEdit, onDelete, on
 }
 
 // ── Order Form ──
-const EMPTY = {customerName:'',phone:'',eventDate:'',eventType:'',eventLocation:'',bagCount:300,packagePrice:'',extras:'',status:'graphics',notes:'',advancePaid:false,balancePaid:false,cocktailTypes:[],closedBy:'',deliveryType:'',bags:[]};
+const EMPTY = {customerName:'',phone:'',eventDate:'',eventType:'',eventLocation:'',bagCount:300,packagePrice:'',extras:'',status:'graphics',notes:'',advancePaid:false,balancePaid:false,cocktailTypes:[],closedBy:'',deliveryType:'',bags:[],backImage:''};
 function OrderForm({order, onSave, onClose}) {
   const [f, setF] = useState(()=> order ? {
     customerName:order.customerName||'',
@@ -1712,12 +1729,23 @@ function OrderForm({order, onSave, onClose}) {
     closedBy: order.closedBy||'',
     deliveryType: order.deliveryType||'',
     bags: order.bags ? (Array.isArray(order.bags) ? order.bags : Object.values(order.bags)) : [],
+    backImage: order.backImage||'',
   } : {...EMPTY});
 
   const set = (k,v) => setF(p=>({...p,[k]:v}));
   const rev = (Number(f.packagePrice)||0) + (Number(f.extras)||0);
   const cost = (Number(f.bagCount)||0) * BAG_COST_PER_UNIT;
   const prof = rev - cost;
+
+  // ── Back image upload (תמונת גב — אותה תמונה לכל השקיות בהזמנה) ──
+  const [backUploading, setBackUploading] = useState(false);
+  const handleBackImageUpload = async (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    e.target.value = ''; setBackUploading(true);
+    try { set('backImage', await compressImage(file)); }
+    catch(err) { alert(`שגיאה: ${err.message}`); }
+    finally { setBackUploading(false); }
+  };
 
   // ── Image upload per bag ──
   const [bagUpload, setBagUpload] = useState({}); // {idx: {uploading, pct}}
@@ -1746,7 +1774,7 @@ function OrderForm({order, onSave, onClose}) {
       extras:Number(f.extras)||0, status:f.status, notes:f.notes.trim(),
       advancePaid:!!f.advancePaid, balancePaid:!!f.balancePaid,
       cocktailTypes:f.cocktailTypes||[], closedBy:f.closedBy||'',
-      deliveryType:f.deliveryType||'', bags:f.bags||[],
+      deliveryType:f.deliveryType||'', bags:f.bags||[], backImage:f.backImage||'',
     });
   };
 
@@ -1818,6 +1846,28 @@ function OrderForm({order, onSave, onClose}) {
               <div className="fgroup"><label className="flbl">תוספות (₪)</label><input className="finp" type="number" min="0" step="1" placeholder="0" value={f.extras} onChange={e=>set('extras',e.target.value)} dir="ltr" style={{textAlign:'right'}}/><span className="fhint">שדרוגים, תוספות מיוחדות</span></div>
               <div className="fgroup fg-full"><label className="flbl">הערות</label><textarea className="ftxt" placeholder="הערות, בקשות מיוחדות..." value={f.notes} onChange={e=>set('notes',e.target.value)}/></div>
               <div className="fg-sec">🛍️ פרטי שקיות לגרפיקה</div>
+
+              {/* ── תמונת גב קבועה לכל השקיות ── */}
+              <div className="fgroup fg-full" style={{marginBottom:4}}>
+                <label className="flbl">🖼️ תמונת גב — אותה תמונה לכל השקיות בהזמנה</label>
+                <input type="file" accept="image/*" id="back-img-input" style={{display:'none'}} onChange={handleBackImageUpload}/>
+                {f.backImage ? (
+                  <div style={{display:'flex',alignItems:'center',gap:14,marginTop:6}}>
+                    <img src={f.backImage} alt="גב שקית" style={{width:110,height:110,objectFit:'cover',borderRadius:10,border:'2px solid var(--primary)',cursor:'pointer',boxShadow:'0 2px 8px rgba(0,0,0,.12)'}} onClick={()=>openImage(f.backImage)} title="לחץ לצפייה מלאה"/>
+                    <div style={{display:'flex',flexDirection:'column',gap:8}}>
+                      <div style={{fontSize:12,color:'var(--gray-500)',fontWeight:600}}>תמונת גב קבועה ✅</div>
+                      <button type="button" className="btn btn-outline btn-sm" onClick={()=>document.getElementById('back-img-input')?.click()}>🔄 החלף</button>
+                      <button type="button" className="btn btn-sm" style={{background:'var(--red)',color:'#fff',border:'none',fontSize:12}} onClick={()=>set('backImage','')}>🗑️ הסר</button>
+                    </div>
+                  </div>
+                ) : (
+                  <div onClick={()=>!backUploading&&document.getElementById('back-img-input')?.click()}
+                    style={{marginTop:6,border:'2px dashed var(--gray-300)',borderRadius:10,padding:'16px 0',textAlign:'center',cursor:backUploading?'default':'pointer',color:'var(--gray-400)',fontSize:13,background:'var(--gray-50)'}}>
+                    {backUploading ? '⏳ מעבד…' : <><span style={{fontSize:24,display:'block',marginBottom:4}}>🖼️</span>לחץ להעלאת תמונת הגב</>}
+                  </div>
+                )}
+              </div>
+
               <div className="fgroup fg-full">
                 <div style={{display:'flex',flexDirection:'column',gap:8}}>
                   {(f.bags||[]).map((bag,idx)=>(
