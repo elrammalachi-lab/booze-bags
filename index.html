@@ -1268,7 +1268,7 @@ function BagsView({orders, onUpdateBag, onAddBag}) {
         <div class="bag-card">
           <div class="bag-head">שקית #${b.bagNum||''}  ·  ${Number(b.quantity)||0} יחידות${b.needsDate?' · 📅 צריך תאריך':''}</div>
           <div class="bag-body">
-            ${b.imageUrl ? `<div class="bag-img-wrap"><img src="${b.imageUrl}" class="bag-img"/><div class="img-lbl">תמונת לקוח</div></div>` : '<div class="bag-img-wrap no-img">אין תמונה</div>'}
+            ${b.imageUrl ? `<div class="bag-img-wrap"><img src="${b.imageUrl}" class="bag-img" onclick="openLb(this.src)" title="לחץ להגדלה"/><div class="img-lbl">לחץ להגדלה 🔍</div></div>` : '<div class="bag-img-wrap no-img">אין תמונה</div>'}
             <div class="bag-details">
               ${b.phraseA   ? `<div class="det"><span class="det-lbl">📝 צד א — מלל</span><span class="det-val">${b.phraseA}</span></div>` : ''}
               ${b.imageNumA ? `<div class="det"><span class="det-lbl">🔢 מספר תמונה</span><span class="det-val">${b.imageNumA}</span></div>` : ''}
@@ -1281,7 +1281,7 @@ function BagsView({orders, onUpdateBag, onAddBag}) {
       const orderBlock = (grp) => `
         <div class="order-block">
           <div class="order-hdr">👤 ${grp.customerName} &nbsp;|&nbsp; 📅 ${fmtD(grp.eventDate)} &nbsp;|&nbsp; 🛍️ ${grp.bags.reduce((s,b)=>s+(Number(b.quantity)||0),0)} יחידות</div>
-          ${grp.backImage ? `<div class="back-section"><div class="back-lbl">🖼️ תמונת גב — אחידה לכל השקיות</div><img src="${grp.backImage}" class="back-img"/></div>` : ''}
+          ${grp.backImage ? `<div class="back-section"><div class="back-lbl">🖼️ תמונת גב — אחידה לכל השקיות</div><img src="${grp.backImage}" class="back-img" onclick="openLb(this.src)" title="לחץ להגדלה"/></div>` : ''}
           ${grp.bags.map(bagCard).join('')}
         </div>`;
 
@@ -1295,22 +1295,32 @@ h1{text-align:center;font-size:22px;margin-bottom:24px;color:#333}
 .order-hdr{background:#4f46e5;color:#fff;padding:12px 18px;font-size:16px;font-weight:700}
 .back-section{background:#eef0ff;padding:14px 18px;display:flex;align-items:center;gap:16px;border-bottom:1px solid #dde}
 .back-lbl{font-size:13px;font-weight:700;color:#4f46e5;min-width:180px}
-.back-img{width:140px;height:140px;object-fit:cover;border-radius:8px;border:2px solid #c7d2fe}
+.back-img{width:140px;height:140px;object-fit:cover;border-radius:8px;border:2px solid #c7d2fe;cursor:zoom-in}
 .bag-card{border-top:1px solid #eee;padding:16px 18px}
 .bag-head{font-weight:700;color:#4f46e5;font-size:14px;margin-bottom:12px}
 .bag-body{display:flex;gap:18px;align-items:flex-start}
 .bag-img-wrap{width:160px;flex-shrink:0;text-align:center}
-.bag-img{width:160px;height:160px;object-fit:cover;border-radius:8px;border:2px solid #e5e7eb}
+.bag-img{width:160px;height:160px;object-fit:cover;border-radius:8px;border:2px solid #e5e7eb;cursor:zoom-in}
 .no-img{width:160px;height:160px;display:flex;align-items:center;justify-content:center;background:#f9f9f9;border:2px dashed #d1d5db;border-radius:8px;font-size:12px;color:#aaa}
 .img-lbl{font-size:11px;color:#888;margin-top:5px}
 .bag-details{flex:1}
 .det{margin-bottom:10px}
 .det-lbl{display:block;font-size:11px;color:#888;margin-bottom:2px}
 .det-val{font-size:15px;font-weight:600;line-height:1.4;white-space:pre-wrap}
-@media print{body{background:#fff;padding:0}.order-block{box-shadow:none;margin-bottom:0}}
+#lb{display:none;position:fixed;inset:0;background:rgba(0,0,0,.92);z-index:9999;align-items:center;justify-content:center;cursor:zoom-out}
+#lb.open{display:flex}
+#lb img{max-width:92vw;max-height:92vh;object-fit:contain;border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.6)}
+#lb-x{position:absolute;top:18px;right:22px;color:#fff;font-size:30px;cursor:pointer;line-height:1;user-select:none}
+@media print{body{background:#fff;padding:0}.order-block{box-shadow:none;margin-bottom:0}#lb{display:none!important}}
 </style></head><body>
 <h1>📦 סיכום שקיות למפעל &mdash; ${today}</h1>
 ${Object.values(orderMap).map(orderBlock).join('')}
+<div id="lb" onclick="closeLb()"><span id="lb-x" onclick="closeLb()">✕</span><img id="lb-img" src="" onclick="event.stopPropagation()"/></div>
+<script>
+function openLb(src){document.getElementById('lb-img').src=src;document.getElementById('lb').classList.add('open');}
+function closeLb(){document.getElementById('lb').classList.remove('open');document.getElementById('lb-img').src='';}
+document.addEventListener('keydown',function(e){if(e.key==='Escape')closeLb();});
+</script>
 </body></html>`;
 
       // ── ZIP ──
