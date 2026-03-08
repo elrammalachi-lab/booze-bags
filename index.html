@@ -1311,9 +1311,13 @@ h1{text-align:center;font-size:22px;margin-bottom:24px;color:#333}
 #lb.open{display:flex}
 #lb img{max-width:92vw;max-height:92vh;object-fit:contain;border-radius:10px;box-shadow:0 8px 40px rgba(0,0,0,.6)}
 #lb-x{position:absolute;top:18px;right:22px;color:#fff;font-size:30px;cursor:pointer;line-height:1;user-select:none}
-@media print{body{background:#fff;padding:0}.order-block{box-shadow:none;margin-bottom:0}#lb{display:none!important}}
+@media print{.toolbar{display:none!important}body{background:#fff;padding:0}.order-block{box-shadow:none;margin-bottom:0}#lb{display:none!important}}
 </style></head><body>
-<h1>📦 סיכום שקיות למפעל &mdash; ${today}</h1>
+<div class="toolbar" style="position:sticky;top:0;z-index:100;background:#4f46e5;padding:10px 20px;display:flex;align-items:center;justify-content:space-between;margin:-24px -24px 24px -24px;box-shadow:0 2px 8px rgba(0,0,0,.2)">
+  <span style="color:#fff;font-weight:700;font-size:16px">📦 סיכום שקיות למפעל &mdash; ${today}</span>
+  <button onclick="window.print()" style="background:#fff;color:#4f46e5;border:none;border-radius:8px;padding:8px 18px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">🖨️ שמור / הדפס PDF</button>
+</div>
+<h1 style="display:none">${today}</h1>
 ${Object.values(orderMap).map(orderBlock).join('')}
 <div id="lb" onclick="closeLb()"><span id="lb-x" onclick="closeLb()">✕</span><img id="lb-img" src="" onclick="event.stopPropagation()"/></div>
 <script>
@@ -1323,16 +1327,20 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeLb();})
 </script>
 </body></html>`;
 
-      // ── ZIP ──
-      const zip = new JSZip();
-      zip.file(`סיכום-למפעל-${today}.html`, html);
-      const excelBuf = XLSX.write(wb, {bookType:'xlsx', type:'array'});
-      zip.file(`שקיות-למפעל-${today}.xlsx`, excelBuf);
-
-      const zipBlob = await zip.generateAsync({type:'blob',compression:'DEFLATE',compressionOptions:{level:4}});
-      const url = URL.createObjectURL(zipBlob);
-      const a = document.createElement('a'); a.href=url; a.download=`שקיות-למפעל-${today}.zip`; a.click();
-      URL.revokeObjectURL(url);
+      // ── הורדה ישירה: HTML + Excel נפרדים (ללא ZIP) ──
+      const dlFile = (content, filename, mime) => {
+        const blob = new Blob([content], {type: mime});
+        const url  = URL.createObjectURL(blob);
+        const a = document.createElement('a'); a.href=url; a.download=filename; a.click();
+        setTimeout(()=>URL.revokeObjectURL(url), 1000);
+      };
+      // 1. HTML עצמאי — כולל תמונות בפנים, נפתח בכל דפדפן בכפל-קליק
+      dlFile(html, `סיכום-למפעל-${today}.html`, 'text/html;charset=utf-8');
+      // 2. Excel — 400ms אחרי כדי שהדפדפן לא יחסום שתי הורדות
+      setTimeout(()=>{
+        const buf = XLSX.write(wb, {bookType:'xlsx', type:'array'});
+        dlFile(buf, `שקיות-למפעל-${today}.xlsx`, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      }, 400);
     } finally { setExporting(false); }
   };
 
