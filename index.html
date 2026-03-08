@@ -1320,11 +1320,11 @@ h1{text-align:center;font-size:22px;margin-bottom:24px;color:#333}
 <h1 style="display:none">${today}</h1>
 ${Object.values(orderMap).map(orderBlock).join('')}
 <div id="lb" onclick="closeLb()"><span id="lb-x" onclick="closeLb()">✕</span><img id="lb-img" src="" onclick="event.stopPropagation()"/></div>
-<script>
+<${'script'}>
 function openLb(src){document.getElementById('lb-img').src=src;document.getElementById('lb').classList.add('open');}
 function closeLb(){document.getElementById('lb').classList.remove('open');document.getElementById('lb-img').src='';}
 document.addEventListener('keydown',function(e){if(e.key==='Escape')closeLb();});
-</script>
+</${'script'}>
 </body></html>`;
 
       // ── הורדה ישירה: HTML + Excel נפרדים (ללא ZIP) ──
