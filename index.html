@@ -1651,19 +1651,31 @@ function DeliveryView({orders, onQuickUpdate}) {
   const [delStatus, setDelStatus] = useState('ממתין');
   const [delPrice, setDelPrice] = useState('');
 
-  const deliveryOrders = useMemo(() =>
+  const allDeliveryOrders = useMemo(() =>
     orders.filter(o => o.deliveryType && (DELIVERY_TYPES.includes(o.deliveryType) || o.deliveryType === 'איסוף'))
           .sort((a,b) => (a.eventDate||'').localeCompare(b.eventDate||'')),
     [orders]
+  );
+
+  // טבלה ראשית — עוד לא הגיע ללקוח
+  const deliveryOrders = useMemo(() =>
+    allDeliveryOrders.filter(o => o.status !== 'delivered'),
+    [allDeliveryOrders]
+  );
+
+  // טבלה תחתונה — הגיע ללקוח
+  const arrivedOrders = useMemo(() =>
+    allDeliveryOrders.filter(o => o.status === 'delivered'),
+    [allDeliveryOrders]
   );
 
   const stats = useMemo(()=>({
     total: deliveryOrders.length,
     pickup: deliveryOrders.filter(o=>o.deliveryType?.startsWith('איסוף')).length,
     delivery: deliveryOrders.filter(o=>o.deliveryType==='משלוח').length,
-    arrived: deliveryOrders.filter(o=>o.deliveryStatus==='הגיע').length,
+    arrived: arrivedOrders.length,
     pending: deliveryOrders.filter(o=>!o.deliveryStatus||o.deliveryStatus==='ממתין').length,
-  }), [deliveryOrders]);
+  }), [deliveryOrders, arrivedOrders]);
 
   const openEdit = (o) => { setEditingOrder(o); setNotes(o.deliveryNotes||''); setDelStatus(o.deliveryStatus||'ממתין'); setDelPrice(o.deliveryPrice||''); };
   const handleClose = () => setEditingOrder(null);
@@ -1678,13 +1690,14 @@ function DeliveryView({orders, onQuickUpdate}) {
         <div className="stat-card"><div className="stat-icon si-green">✅</div><div><div className="stat-val">{stats.arrived}</div><div className="stat-lbl">הגיעו</div></div></div>
       </div>
 
+      {/* ── טבלה ראשית: עוד לא הגיע ── */}
       <div className="card">
         <div className="card-hdr">
-          <span className="card-title">🚚 מעקב משלוחים ואיסופים</span>
-          <span style={{fontSize:12,color:'var(--gray-400)'}}>נגזר מההזמנות · {deliveryOrders.length} רשומות</span>
+          <span className="card-title">🚚 ממתינים לשליחה / איסוף</span>
+          <span style={{fontSize:12,color:'var(--gray-400)'}}>{deliveryOrders.length} רשומות פעילות</span>
         </div>
         {deliveryOrders.length===0 ? (
-          <div className="empty"><div className="empty-icon">🚚</div><p className="empty-txt">אין הזמנות עם משלוח/איסוף — הגדר בטופס ההזמנה</p></div>
+          <div className="empty"><div className="empty-icon">✅</div><p className="empty-txt">אין הזמנות ממתינות — הכל טופל!</p></div>
         ) : (
           <div className="tbl-wrap">
             <table>
@@ -1707,6 +1720,33 @@ function DeliveryView({orders, onQuickUpdate}) {
           </div>
         )}
       </div>
+
+      {/* ── טבלה תחתונה: הגיע ללקוח ── */}
+      {arrivedOrders.length > 0 && (
+        <div className="card">
+          <div className="card-hdr" style={{background:'var(--gray-50)'}}>
+            <span className="card-title" style={{color:'#065f46'}}>🚚 הגיע ללקוח</span>
+            <span style={{fontSize:12,color:'var(--gray-400)'}}>{arrivedOrders.length} הזמנות שהושלמו</span>
+          </div>
+          <div className="tbl-wrap">
+            <table>
+              <thead><tr><th>לקוח</th><th>תאריך אירוע</th><th>מיקום</th><th>כמות</th><th>סוג</th><th>מחיר משלוח</th><th>הערות</th><th></th></tr></thead>
+              <tbody>{arrivedOrders.map((o,idx)=>(
+                <tr key={o.id} style={{background:idx%2===0?'#f0fdf4':'#dcfce7',opacity:0.85}}>
+                  <td className="td-b">{o.customerName}</td>
+                  <td>{fmtDate(o.eventDate)}</td>
+                  <td style={{maxWidth:160,fontSize:12}}>{o.eventLocation||'—'}</td>
+                  <td className="td-c" style={{fontWeight:600}}>{o.bagCount||'—'}</td>
+                  <td><span style={{fontWeight:700,color:DELIVERY_TYPE_COLOR[o.deliveryType]||'var(--gray-600)'}}>{o.deliveryType}</span></td>
+                  <td className="td-c" style={{fontWeight:600,color:'var(--green)'}}>{o.deliveryPrice?`₪${Number(o.deliveryPrice).toLocaleString('he-IL')}`:'—'}</td>
+                  <td className="td-note" title={o.deliveryNotes||''}>{o.deliveryNotes||'—'}</td>
+                  <td><button className="btn-icon" title="עדכן הערות" onClick={()=>openEdit(o)}>✏️</button></td>
+                </tr>
+              ))}</tbody>
+            </table>
+          </div>
+        </div>
+      )}
 
       {editingOrder && (
         <div className="overlay" onClick={e=>{if(e.target===e.currentTarget)handleClose();}}>
