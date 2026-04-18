@@ -1959,13 +1959,34 @@ function OrdersTable({orders, allOrders, filters, onFilter, onEdit, onDelete, on
         ) : (
           <div className="tbl-wrap"><table>
             <thead><tr><th>שם לקוח</th><th>טלפון</th><th>תאריך אירוע</th><th>מיקום</th><th>איסוף/משלוח</th><th>סוג אירוע</th><th>כמות שקיות</th><th>מחיר חבילה</th><th>סוגי קוקטיילים</th><th>מקדמה</th><th>יתרה</th><th>📄</th><th>סגר</th><th>סטטוס</th><th>הערות</th><th>פעולות</th></tr></thead>
-            <tbody>{orders.map(o=>{
+            <tbody>{(()=>{
+              let lastMonth='';
+              const COL_COUNT=16;
+              return orders.flatMap(o=>{
               const ctypes=Array.isArray(o.cocktailTypes)?o.cocktailTypes:[];
               const total=(Number(o.packagePrice)||0)+(Number(o.extras)||0);
               const adv=Number(o.advanceAmount)||0;
               const bal=Math.max(0,total-adv);
               const dlDoc=()=>{if(!o.confirmDoc)return;const a=document.createElement('a');a.href=o.confirmDoc;a.download=o.confirmDocName||'אישור-הזמנה';a.click();};
-              return(
+              const ym=o.eventDate?o.eventDate.substring(0,7):'';
+              const rows=[];
+              if(ym&&ym!==lastMonth){
+                lastMonth=ym;
+                const [y,m]=ym.split('-');
+                const label=`${MONTH_NAMES[parseInt(m)-1]} ${y}`;
+                const monthOrders=orders.filter(x=>(x.eventDate||'').startsWith(ym));
+                const monthBags=monthOrders.reduce((s,x)=>s+(Number(x.bagCount)||0),0);
+                const monthRev=monthOrders.reduce((s,x)=>s+revenue(x),0);
+                rows.push(
+                  <tr key={`hdr-${ym}`}>
+                    <td colSpan={COL_COUNT} style={{background:'#eef2ff',borderTop:'2px solid #c7d2fe',borderBottom:'1px solid #c7d2fe',padding:'7px 16px',fontWeight:800,fontSize:13,color:'#4338ca',letterSpacing:0.2}}>
+                      📅 {label}
+                      <span style={{marginRight:16,fontSize:12,fontWeight:400,color:'#6366f1'}}>{monthOrders.length} הזמנות · {monthBags.toLocaleString('he-IL')} שקיות · {fmt(monthRev)}</span>
+                    </td>
+                  </tr>
+                );
+              }
+              rows.push(
               <tr key={o.id}>
                 <td className="td-b">{o.customerName}</td>
                 <td>{o.phone?<a className="phone-link" href={`tel:${o.phone}`}>{o.phone}</a>:'—'}</td>
@@ -1993,7 +2014,10 @@ function OrdersTable({orders, allOrders, filters, onFilter, onEdit, onDelete, on
                 <td><Badge status={o.status}/></td>
                 <td className="td-note" title={o.notes||''}>{o.notes||'—'}</td>
                 <td><div className="actions"><button className="btn-ghost" onClick={()=>onEdit(o)}>✏️</button><button className="btn-del" onClick={()=>onDelete(o.id)}>🗑️</button></div></td>
-              </tr>);})}</tbody>
+              </tr>);
+              return rows;
+              });
+            })()}</tbody>
           </table></div>
         )}
       </div>
