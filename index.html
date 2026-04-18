@@ -1958,8 +1958,14 @@ function OrdersTable({orders, allOrders, filters, onFilter, onEdit, onDelete, on
           <div className="empty"><div className="empty-icon">🔍</div><p className="empty-txt">{hasF?'אין הזמנות התואמות את הסינון':'אין הזמנות עדיין'}</p>{!hasF&&<button className="btn btn-violet" onClick={onAdd}>הוסף הזמנה ראשונה</button>}</div>
         ) : (
           <div className="tbl-wrap"><table>
-            <thead><tr><th>שם לקוח</th><th>טלפון</th><th>תאריך אירוע</th><th>מיקום</th><th>איסוף/משלוח</th><th>סוג אירוע</th><th>כמות שקיות</th><th>מחיר חבילה</th><th>סוגי קוקטיילים</th><th>מקדמה שולמה</th><th>יתרה שולמה</th><th>סגר</th><th>סטטוס</th><th>הערות</th><th>פעולות</th></tr></thead>
-            <tbody>{orders.map(o=>{const ctypes=Array.isArray(o.cocktailTypes)?o.cocktailTypes:[];return(
+            <thead><tr><th>שם לקוח</th><th>טלפון</th><th>תאריך אירוע</th><th>מיקום</th><th>איסוף/משלוח</th><th>סוג אירוע</th><th>כמות שקיות</th><th>מחיר חבילה</th><th>סוגי קוקטיילים</th><th>מקדמה</th><th>יתרה</th><th>📄</th><th>סגר</th><th>סטטוס</th><th>הערות</th><th>פעולות</th></tr></thead>
+            <tbody>{orders.map(o=>{
+              const ctypes=Array.isArray(o.cocktailTypes)?o.cocktailTypes:[];
+              const total=(Number(o.packagePrice)||0)+(Number(o.extras)||0);
+              const adv=Number(o.advanceAmount)||0;
+              const bal=Math.max(0,total-adv);
+              const dlDoc=()=>{if(!o.confirmDoc)return;const a=document.createElement('a');a.href=o.confirmDoc;a.download=o.confirmDocName||'אישור-הזמנה';a.click();};
+              return(
               <tr key={o.id}>
                 <td className="td-b">{o.customerName}</td>
                 <td>{o.phone?<a className="phone-link" href={`tel:${o.phone}`}>{o.phone}</a>:'—'}</td>
@@ -1970,8 +1976,19 @@ function OrdersTable({orders, allOrders, filters, onFilter, onEdit, onDelete, on
                 <td className="td-c" style={{fontWeight:600}}>{o.bagCount}</td>
                 <td>{fmt(o.packagePrice)}</td>
                 <td style={{minWidth:160}}>{ctypes.length>0?(<div className="cocktail-chips">{ctypes.map((ct)=>{const idx=COCKTAIL_TYPES.findIndex(c=>c.toLowerCase()===ct.toLowerCase());return <span key={ct} className={`chip chip-${idx>=0?idx%7:Math.abs(ct.charCodeAt(0))%7}`}>{ct}</span>})}</div>):<span style={{color:'var(--gray-400)'}}>—</span>}</td>
-                <td className="td-c"><PayBtn orderId={o.id} field="advancePaid" value={!!o.advancePaid}/></td>
-                <td className="td-c"><PayBtn orderId={o.id} field="balancePaid" value={!!o.balancePaid}/></td>
+                <td className="td-c">
+                  {adv>0&&<div style={{fontSize:11,fontWeight:700,color:'var(--gray-600)',marginBottom:2}}>{fmt(adv)}</div>}
+                  <PayBtn orderId={o.id} field="advancePaid" value={!!o.advancePaid}/>
+                </td>
+                <td className="td-c">
+                  {bal>0&&<div style={{fontSize:11,fontWeight:700,color:'var(--red)',marginBottom:2}}>{fmt(bal)}</div>}
+                  <PayBtn orderId={o.id} field="balancePaid" value={!!o.balancePaid}/>
+                </td>
+                <td className="td-c">
+                  {o.confirmDoc
+                    ? <button className="btn-icon" title={o.confirmDocName||'הורד מסמך'} onClick={dlDoc}>📄</button>
+                    : <span style={{color:'var(--gray-200)',fontSize:16}}>—</span>}
+                </td>
                 <td><TeamTag who={o.closedBy}/></td>
                 <td><Badge status={o.status}/></td>
                 <td className="td-note" title={o.notes||''}>{o.notes||'—'}</td>
@@ -1985,7 +2002,89 @@ function OrdersTable({orders, allOrders, filters, onFilter, onEdit, onDelete, on
 }
 
 // ── Order Form ──
-const EMPTY = {customerName:'',phone:'',eventDate:'',eventType:'',eventLocation:'',bagCount:300,packagePrice:'',extras:'',status:'graphics',notes:'',advancePaid:false,balancePaid:false,cocktailTypes:[],closedBy:'',deliveryType:'',bags:[],backImage:''};
+// ── DocsView ──
+function DocsView({orders, onEdit}) {
+  const docsOrders = useMemo(() =>
+    [...orders].filter(o => o.confirmDoc)
+               .sort((a,b)=>(b.eventDate||'').localeCompare(a.eventDate||'')),
+    [orders]
+  );
+  const allOrders = useMemo(() =>
+    [...orders].sort((a,b)=>(b.eventDate||'').localeCompare(a.eventDate||'')),
+    [orders]
+  );
+
+  const dlDoc = (o) => {
+    if (!o.confirmDoc) return;
+    const a = document.createElement('a'); a.href = o.confirmDoc; a.download = o.confirmDocName||'אישור-הזמנה'; a.click();
+  };
+
+  return (
+    <div style={{display:'flex',flexDirection:'column',gap:16}}>
+      <div className="stats-grid">
+        <div className="stat-card"><div className="stat-icon si-violet">📄</div><div><div className="stat-val">{docsOrders.length}</div><div className="stat-lbl">מסמכים מצורפים</div></div></div>
+        <div className="stat-card"><div className="stat-icon si-amber">📋</div><div><div className="stat-val">{allOrders.length - docsOrders.length}</div><div className="stat-lbl">ללא מסמך</div></div></div>
+      </div>
+
+      {/* הזמנות עם מסמך */}
+      <div className="card">
+        <div className="card-hdr">
+          <span className="card-title">📄 אישורי הזמנה</span>
+          <span style={{fontSize:12,color:'var(--gray-400)'}}>{docsOrders.length} קבצים שמורים</span>
+        </div>
+        {docsOrders.length === 0 ? (
+          <div className="empty"><div className="empty-icon">📄</div><p className="empty-txt">אין מסמכים מצורפים עדיין — צרף מסמך Word/PDF בטופס ההזמנה</p></div>
+        ) : (
+          <div className="tbl-wrap"><table>
+            <thead><tr><th>לקוח</th><th>תאריך אירוע</th><th>שם קובץ</th><th>סטטוס הזמנה</th><th>פעולות</th></tr></thead>
+            <tbody>{docsOrders.map((o,idx)=>(
+              <tr key={o.id} style={{background:idx%2===0?'#fff':'var(--gray-50)'}}>
+                <td className="td-b">{o.customerName}</td>
+                <td>{fmtDate(o.eventDate)}</td>
+                <td>
+                  <div style={{display:'flex',alignItems:'center',gap:8}}>
+                    <span style={{fontSize:18}}>📄</span>
+                    <span style={{fontSize:13,color:'#0369a1',fontWeight:600}}>{o.confirmDocName||'מסמך'}</span>
+                  </div>
+                </td>
+                <td><Badge status={o.status}/></td>
+                <td>
+                  <div className="actions">
+                    <button className="btn-ghost" title="הורד מסמך" onClick={()=>dlDoc(o)}>⬇️</button>
+                    <button className="btn-ghost" title="ערוך הזמנה" onClick={()=>onEdit(o)}>✏️</button>
+                  </div>
+                </td>
+              </tr>
+            ))}</tbody>
+          </table></div>
+        )}
+      </div>
+
+      {/* הזמנות ללא מסמך */}
+      {allOrders.filter(o=>!o.confirmDoc).length > 0 && (
+        <div className="card">
+          <div className="card-hdr" style={{background:'var(--gray-50)'}}>
+            <span className="card-title" style={{color:'var(--gray-500)'}}>📋 הזמנות ללא מסמך מצורף</span>
+            <span style={{fontSize:12,color:'var(--gray-400)'}}>{allOrders.filter(o=>!o.confirmDoc).length} הזמנות</span>
+          </div>
+          <div className="tbl-wrap"><table>
+            <thead><tr><th>לקוח</th><th>תאריך אירוע</th><th>סטטוס</th><th></th></tr></thead>
+            <tbody>{allOrders.filter(o=>!o.confirmDoc).map((o,idx)=>(
+              <tr key={o.id} style={{background:idx%2===0?'#fff':'var(--gray-50)',opacity:0.75}}>
+                <td className="td-b">{o.customerName}</td>
+                <td>{fmtDate(o.eventDate)}</td>
+                <td><Badge status={o.status}/></td>
+                <td><button className="btn-ghost" title="ערוך והוסף מסמך" onClick={()=>onEdit(o)}>📎 צרף</button></td>
+              </tr>
+            ))}</tbody>
+          </table></div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+const EMPTY = {customerName:'',phone:'',eventDate:'',eventType:'',eventLocation:'',bagCount:300,packagePrice:'',extras:'',status:'graphics',notes:'',advancePaid:false,balancePaid:false,advanceAmount:'',cocktailTypes:[],closedBy:'',deliveryType:'',bags:[],backImage:'',confirmDoc:'',confirmDocName:''};
 function OrderForm({order, onSave, onClose}) {
   const [f, setF] = useState(()=> order ? {
     customerName:order.customerName||'',
@@ -2000,17 +2099,39 @@ function OrderForm({order, onSave, onClose}) {
     notes:order.notes||'',
     advancePaid:!!order.advancePaid,
     balancePaid:!!order.balancePaid,
+    advanceAmount:order.advanceAmount||'',
     cocktailTypes: Array.isArray(order.cocktailTypes) ? order.cocktailTypes : [],
     closedBy: order.closedBy||'',
     deliveryType: order.deliveryType||'',
     bags: order.bags ? (Array.isArray(order.bags) ? order.bags : Object.values(order.bags)) : [],
     backImage: order.backImage||'',
+    confirmDoc: order.confirmDoc||'',
+    confirmDocName: order.confirmDocName||'',
   } : {...EMPTY});
 
   const set = (k,v) => setF(p=>({...p,[k]:v}));
   const rev = (Number(f.packagePrice)||0) + (Number(f.extras)||0);
   const cost = (Number(f.bagCount)||0) * BAG_COST_PER_UNIT;
   const prof = rev - cost;
+
+  // ── Document upload (אישור הזמנה Word/PDF) ──
+  const [docUploading, setDocUploading] = useState(false);
+  const handleDocUpload = (e) => {
+    const file = e.target.files[0]; if (!file) return;
+    e.target.value = ''; setDocUploading(true);
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      set('confirmDoc', ev.target.result);
+      set('confirmDocName', file.name);
+      setDocUploading(false);
+    };
+    reader.onerror = () => { alert('שגיאה בקריאת הקובץ'); setDocUploading(false); };
+    reader.readAsDataURL(file);
+  };
+  const downloadDoc = () => {
+    if (!f.confirmDoc) return;
+    const a = document.createElement('a'); a.href = f.confirmDoc; a.download = f.confirmDocName||'אישור-הזמנה'; a.click();
+  };
 
   // ── Back image upload (תמונת גב — אותה תמונה לכל השקיות בהזמנה) ──
   const [backUploading, setBackUploading] = useState(false);
@@ -2048,8 +2169,10 @@ function OrderForm({order, onSave, onClose}) {
       bagCount:Number(f.bagCount), packagePrice:Number(f.packagePrice)||0,
       extras:Number(f.extras)||0, status:f.status, notes:f.notes.trim(),
       advancePaid:!!f.advancePaid, balancePaid:!!f.balancePaid,
+      advanceAmount:Number(f.advanceAmount)||0,
       cocktailTypes:f.cocktailTypes||[], closedBy:f.closedBy||'',
       deliveryType:f.deliveryType||'', bags:f.bags||[], backImage:f.backImage||'',
+      confirmDoc:f.confirmDoc||'', confirmDocName:f.confirmDocName||'',
     });
   };
 
@@ -2087,10 +2210,20 @@ function OrderForm({order, onSave, onClose}) {
               </div>
               <div className="fg-sec">תשלומים</div>
               <div className="fgroup">
+                <label className="flbl">סכום מקדמה (₪)</label>
+                <input className="finp" type="number" min="0" step="1" placeholder="0" value={f.advanceAmount} onChange={e=>set('advanceAmount',e.target.value)} dir="ltr" style={{textAlign:'right'}}/>
+              </div>
+              <div className="fgroup">
                 <label className="flbl">מקדמה שולמה</label>
                 <button type="button" className={`pay-btn ${f.advancePaid?'pay-yes':'pay-no'}`} style={{width:'100%',justifyContent:'center',padding:'8px'}} onClick={()=>set('advancePaid',!f.advancePaid)}>
                   {f.advancePaid ? '✅ כן — שולמה' : '❌ לא — טרם שולמה'}
                 </button>
+              </div>
+              <div className="fgroup">
+                <label className="flbl">יתרה לתשלום (₪)</label>
+                <div style={{padding:'8px 12px',background:'var(--gray-50)',borderRadius:8,border:'1px solid var(--gray-200)',fontSize:15,fontWeight:700,color:(Number(f.packagePrice)||0)+(Number(f.extras)||0)-(Number(f.advanceAmount)||0)>0?'var(--red)':'var(--green)',textAlign:'right'}}>
+                  {fmt(Math.max(0,(Number(f.packagePrice)||0)+(Number(f.extras)||0)-(Number(f.advanceAmount)||0)))}
+                </div>
               </div>
               <div className="fgroup">
                 <label className="flbl">יתרה שולמה</label>
@@ -2121,6 +2254,29 @@ function OrderForm({order, onSave, onClose}) {
               <div className="fgroup"><label className="flbl">תוספות (₪)</label><input className="finp" type="number" min="0" step="1" placeholder="0" value={f.extras} onChange={e=>set('extras',e.target.value)} dir="ltr" style={{textAlign:'right'}}/><span className="fhint">שדרוגים, תוספות מיוחדות</span></div>
               <div className="fgroup fg-full"><label className="flbl">הערות</label><textarea className="ftxt" placeholder="הערות, בקשות מיוחדות..." value={f.notes} onChange={e=>set('notes',e.target.value)}/></div>
               <div className="fg-sec">🛍️ פרטי שקיות לגרפיקה</div>
+
+              {/* ── אישור הזמנה (Word / PDF) ── */}
+              <div className="fgroup fg-full">
+                <label className="flbl">📄 אישור הזמנה (Word / PDF)</label>
+                <input type="file" accept=".doc,.docx,.pdf,.odt" id="confirm-doc-input" style={{display:'none'}} onChange={handleDocUpload}/>
+                {f.confirmDoc ? (
+                  <div style={{display:'flex',alignItems:'center',gap:12,marginTop:6,padding:'10px 14px',background:'#f0f9ff',border:'1px solid #bae6fd',borderRadius:10}}>
+                    <span style={{fontSize:26}}>📄</span>
+                    <div style={{flex:1}}>
+                      <div style={{fontWeight:700,fontSize:13,color:'#0369a1'}}>{f.confirmDocName||'מסמך'}</div>
+                      <div style={{fontSize:11,color:'var(--gray-400)',marginTop:2}}>מסמך מצורף ✅</div>
+                    </div>
+                    <button type="button" className="btn btn-outline btn-sm" onClick={downloadDoc}>⬇️ הורד</button>
+                    <button type="button" className="btn btn-outline btn-sm" onClick={()=>document.getElementById('confirm-doc-input')?.click()}>🔄 החלף</button>
+                    <button type="button" className="btn btn-sm" style={{background:'var(--red)',color:'#fff',border:'none',fontSize:12}} onClick={()=>{set('confirmDoc','');set('confirmDocName','');}}>🗑️</button>
+                  </div>
+                ) : (
+                  <div onClick={()=>!docUploading&&document.getElementById('confirm-doc-input')?.click()}
+                    style={{marginTop:6,border:'2px dashed #bae6fd',borderRadius:10,padding:'14px 0',textAlign:'center',cursor:docUploading?'default':'pointer',color:'var(--gray-400)',fontSize:13,background:'#f0f9ff'}}>
+                    {docUploading ? '⏳ טוען…' : <><span style={{fontSize:22,display:'block',marginBottom:4}}>📄</span>לחץ לצירוף מסמך אישור הזמנה</>}
+                  </div>
+                )}
+              </div>
 
               {/* ── תמונת גב קבועה לכל השקיות ── */}
               <div className="fgroup fg-full" style={{marginBottom:4}}>
@@ -2803,6 +2959,7 @@ function App() {
     {id:'bags',      label:'🛍️  שקיות'},
     {id:'delivery',  label:'🚚  משלוח/איסוף'},
     {id:'finance',   label:'💳  הוצאות/הכנסות'},
+    {id:'docs',      label:'📄  מסמכים'},
   ];
 
   return (
@@ -2840,6 +2997,7 @@ function App() {
         {tab==='bags'      && <BagsView orders={orders} onUpdateBag={handleUpdateBag} onAddBag={handleAddBag}/>}
         {tab==='delivery'  && <DeliveryView orders={orders} onQuickUpdate={handleQuickUpdate}/>}
         {tab==='finance'   && <TransactionsView transactions={transactions} onAdd={handleAddTransaction} onDelete={handleDeleteTransaction} onUpdate={handleUpdateTransaction} fixedExpenses={fixedExpenses} onAddFixedExpense={handleAddFixedExpense} onDeleteFixedExpense={handleDeleteFixedExpense}/>}
+        {tab==='docs'      && <DocsView orders={orders} onEdit={handleEdit}/>}
       </main>
 
       {showForm && <OrderForm order={editing} onSave={handleSave} onClose={handleClose}/>}
