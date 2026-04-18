@@ -2257,8 +2257,8 @@ function OrderForm({order, onSave, onClose}) {
 
               {/* ── אישור הזמנה (Word / PDF) ── */}
               <div className="fgroup fg-full">
-                <label className="flbl">📄 אישור הזמנה (Word / PDF)</label>
-                <input type="file" accept=".doc,.docx,.pdf,.odt" id="confirm-doc-input" style={{display:'none'}} onChange={handleDocUpload}/>
+                <label className="flbl">📄 אישור הזמנה (Word / PDF / תמונה)</label>
+                <input type="file" accept=".doc,.docx,.pdf,.odt,image/*" id="confirm-doc-input" style={{display:'none'}} onChange={handleDocUpload}/>
                 {f.confirmDoc ? (
                   <div style={{display:'flex',alignItems:'center',gap:12,marginTop:6,padding:'10px 14px',background:'#f0f9ff',border:'1px solid #bae6fd',borderRadius:10}}>
                     <span style={{fontSize:26}}>📄</span>
@@ -2273,7 +2273,7 @@ function OrderForm({order, onSave, onClose}) {
                 ) : (
                   <div onClick={()=>!docUploading&&document.getElementById('confirm-doc-input')?.click()}
                     style={{marginTop:6,border:'2px dashed #bae6fd',borderRadius:10,padding:'14px 0',textAlign:'center',cursor:docUploading?'default':'pointer',color:'var(--gray-400)',fontSize:13,background:'#f0f9ff'}}>
-                    {docUploading ? '⏳ טוען…' : <><span style={{fontSize:22,display:'block',marginBottom:4}}>📄</span>לחץ לצירוף מסמך אישור הזמנה</>}
+                    {docUploading ? '⏳ טוען…' : <><span style={{fontSize:22,display:'block',marginBottom:4}}>📄</span>לחץ לצירוף מסמך / תמונה</>}
                   </div>
                 )}
               </div>
