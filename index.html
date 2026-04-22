@@ -386,9 +386,15 @@ const ML_PER_BAG = 20; // מיליליטר קוקטייל לשקית — שנה 
 const EVENT_TYPES = ['חתונה','בר מצווה','בת מצווה','יום הולדת','מסיבת קוקטייל','אירוע חברה','מסיבת רווקים/ות','ברית','אחר'];
 const MONTH_NAMES = ['ינואר','פברואר','מרץ','אפריל','מאי','יוני','יולי','אוגוסט','ספטמבר','אוקטובר','נובמבר','דצמבר'];
 const COCKTAIL_TYPES = [
-  'Friday at Noon', 'Green Gin', 'Honey & Anis', 'Bazooka Sunrise',
-  'Mojito Lychee', 'Queens Margarita', 'Citros Spice',
+  'BAZOOKA SUNRISE', 'QUEENS MARGARITA', 'HONEY & ANIS',
+  'GREEN GIN', 'FRIDAY AT NOON', 'CITROS SPICE', 'MOJITO LYCHEE',
 ];
+// מנרמל שם קוקטייל לפורמט הסטנדרטי (לוכד גם גרסאות ישנות עם אותיות קטנות)
+const normalizeCocktail = (name) => {
+  if (!name) return '';
+  const lower = name.toLowerCase().trim();
+  return COCKTAIL_TYPES.find(c => c.toLowerCase() === lower) || name.toUpperCase().trim();
+};
 const STATUSES = [
   { id: 'graphics',  label: 'קיבל הוראות גרפיקה', icon: '🎨' },
   { id: 'photos',    label: 'שלח תמונות ומשפטים',  icon: '📸' },
@@ -1418,7 +1424,7 @@ function BagModal({bag, bagIdx, orderId, orders, onSave, onClose}) {
       phraseA:   f.phraseA.trim(),
       imageNumA: f.imageNumA.trim(),
       namesB:    f.namesB.trim(),
-      cocktailB: f.cocktailB||'',
+      cocktailB: normalizeCocktail(f.cocktailB),
       quantity:  Number(f.quantity)||100,
       needsDate: !!f.needsDate,
       imageUrl:  imageUrl||'',
@@ -1549,7 +1555,7 @@ function BagsView({orders, onUpdateBag, onAddBag}) {
   const cocktailStats = useMemo(() => {
     const stats = {};
     dateFilteredBags.forEach(bag => {
-      const key = (bag.cocktailB||'').trim();
+      const key = normalizeCocktail(bag.cocktailB);
       if (!key) return;
       if (!stats[key]) stats[key] = {count:0,bags:0};
       stats[key].count++;
@@ -1606,7 +1612,7 @@ function BagsView({orders, onUpdateBag, onAddBag}) {
       const data = [headers, ...rowsWithImg.map(b=>[
         b.customerName||'', fmtD(b.eventDate), b.bagNum||'',
         b._imgName ? `תמונות/${b._imgName}` : '',
-        b.phraseA||'', b.imageNumA||'', b.namesB||'', b.cocktailB||'',
+        b.phraseA||'', b.imageNumA||'', b.namesB||'', normalizeCocktail(b.cocktailB),
         b.needsDate?'כן':'לא', Number(b.quantity)||0,
       ])];
       const ws = XLSX.utils.aoa_to_sheet(data);
@@ -1636,7 +1642,7 @@ function BagsView({orders, onUpdateBag, onAddBag}) {
               ${b.phraseA   ? `<div class="det"><span class="det-lbl">📝 צד א — מלל</span><span class="det-val">${b.phraseA}</span></div>` : ''}
               ${b.imageNumA ? `<div class="det"><span class="det-lbl">🔢 מספר תמונה</span><span class="det-val">${b.imageNumA}</span></div>` : ''}
               ${b.namesB    ? `<div class="det"><span class="det-lbl">👥 צד ב — שמות</span><span class="det-val">${b.namesB}</span></div>` : ''}
-              ${b.cocktailB ? `<div class="det"><span class="det-lbl">🍸 קוקטייל</span><span class="det-val">${b.cocktailB}</span></div>` : ''}
+              ${b.cocktailB ? `<div class="det"><span class="det-lbl">🍸 קוקטייל</span><span class="det-val">${normalizeCocktail(b.cocktailB)}</span></div>` : ''}
             </div>
           </div>
         </div>`;
@@ -1713,7 +1719,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeLb();})
             <div className="card-hdr"><span className="card-title">📊 סיכום לפי קוקטייל</span></div>
             <div style={{display:'flex',flexWrap:'wrap',gap:10,padding:'12px 16px'}}>
               {cocktailStats.map(([name,s])=>{
-                const cidx=COCKTAIL_TYPES.findIndex(c=>c.toLowerCase()===name.toLowerCase());
+                const cidx=COCKTAIL_TYPES.indexOf(name);
                 const liters = (s.bags * ML_PER_BAG / 1000).toFixed(1);
                 return (
                   <div key={name} style={{background:'var(--gray-50)',border:'1px solid var(--gray-200)',borderRadius:10,padding:'10px 16px',minWidth:160}}>
@@ -1812,7 +1818,7 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeLb();})
                     <td style={{maxWidth:220,fontSize:13}}>{bag.phraseA||'—'}</td>
                     <td className="td-c">{bag.imageNumA||'—'}</td>
                     <td style={{fontSize:13}}>{bag.namesB||'—'}</td>
-                    <td>{bag.cocktailB?(() => { const ct=bag.cocktailB; const cidx=COCKTAIL_TYPES.findIndex(c=>c.toLowerCase()===ct.toLowerCase().trim()); return <span className={`chip chip-${cidx>=0?cidx%7:Math.abs(ct.charCodeAt(0))%7}`}>{ct}</span>; })():'—'}</td>
+                    <td>{bag.cocktailB?(() => { const ct=normalizeCocktail(bag.cocktailB); const cidx=COCKTAIL_TYPES.indexOf(ct); return <span className={`chip chip-${cidx>=0?cidx%7:Math.abs(ct.charCodeAt(0))%7}`}>{ct}</span>; })():'—'}</td>
                     <td className="td-c">{bag.needsDate?'✅':'❌'}</td>
                     <td className="td-c" style={{fontWeight:600}}>{bag.quantity||'—'}</td>
                     <td>{fmtDate(bag.eventDate)}</td>
@@ -2190,7 +2196,7 @@ function OrdersTable({orders, allOrders, filters, onFilter, onEdit, onDelete, on
                 <td>{o.eventType||'—'}</td>
                 <td className="td-c" style={{fontWeight:600}}>{o.bagCount}</td>
                 <td>{fmt(o.packagePrice)}</td>
-                <td style={{minWidth:160}}>{ctypes.length>0?(<div className="cocktail-chips">{ctypes.map((ct)=>{const idx=COCKTAIL_TYPES.findIndex(c=>c.toLowerCase()===ct.toLowerCase());return <span key={ct} className={`chip chip-${idx>=0?idx%7:Math.abs(ct.charCodeAt(0))%7}`}>{ct}</span>})}</div>):<span style={{color:'var(--gray-400)'}}>—</span>}</td>
+                <td style={{minWidth:160}}>{ctypes.length>0?(<div className="cocktail-chips">{ctypes.map((ct)=>{const norm=normalizeCocktail(ct);const idx=COCKTAIL_TYPES.indexOf(norm);return <span key={ct} className={`chip chip-${idx>=0?idx%7:Math.abs(norm.charCodeAt(0))%7}`}>{norm}</span>})}</div>):<span style={{color:'var(--gray-400)'}}>—</span>}</td>
                 <td className="td-c">
                   {adv>0&&<div style={{fontSize:11,fontWeight:700,color:'var(--gray-600)',marginBottom:2}}>{fmt(adv)}</div>}
                   <PayBtn orderId={o.id} field="advancePaid" value={!!o.advancePaid}/>
@@ -2318,10 +2324,10 @@ function OrderForm({order, onSave, onClose}) {
     advancePaid:!!order.advancePaid,
     balancePaid:!!order.balancePaid,
     advanceAmount:order.advanceAmount||'',
-    cocktailTypes: Array.isArray(order.cocktailTypes) ? order.cocktailTypes : [],
+    cocktailTypes: Array.isArray(order.cocktailTypes) ? order.cocktailTypes.map(normalizeCocktail) : [],
     closedBy: order.closedBy||'',
     deliveryType: order.deliveryType||'',
-    bags: order.bags ? (Array.isArray(order.bags) ? order.bags : Object.values(order.bags)) : [],
+    bags: order.bags ? (Array.isArray(order.bags) ? order.bags : Object.values(order.bags)).map(b=>({...b, cocktailB: normalizeCocktail(b.cocktailB)})) : [],
     backImage: order.backImage||'',
     confirmDoc: order.confirmDoc||'',
     confirmDocName: order.confirmDocName||'',
@@ -2388,8 +2394,8 @@ function OrderForm({order, onSave, onClose}) {
       extras:Number(f.extras)||0, status:f.status, notes:f.notes.trim(),
       advancePaid:!!f.advancePaid, balancePaid:!!f.balancePaid,
       advanceAmount:Number(f.advanceAmount)||0,
-      cocktailTypes:f.cocktailTypes||[], closedBy:f.closedBy||'',
-      deliveryType:f.deliveryType||'', bags:f.bags||[], backImage:f.backImage||'',
+      cocktailTypes:(f.cocktailTypes||[]).map(normalizeCocktail), closedBy:f.closedBy||'',
+      deliveryType:f.deliveryType||'', bags:(f.bags||[]).map(b=>({...b,cocktailB:normalizeCocktail(b.cocktailB)})), backImage:f.backImage||'',
       confirmDoc:f.confirmDoc||'', confirmDocName:f.confirmDocName||'',
     });
   };
