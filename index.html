@@ -389,11 +389,41 @@ const COCKTAIL_TYPES = [
   'BAZOOKA SUNRISE', 'QUEENS MARGARITA', 'HONEY & ANIS',
   'GREEN GIN', 'FRIDAY AT NOON', 'CITROS SPICE', 'MOJITO LYCHEE',
 ];
-// מנרמל שם קוקטייל לפורמט הסטנדרטי (לוכד גם גרסאות ישנות עם אותיות קטנות)
+// מפת נרמול — כל כינוי ידוע → שם קנוני
+const _COCKTAIL_MAP = {
+  // BAZOOKA SUNRISE
+  'bazooka sunrise':'BAZOOKA SUNRISE','sunrise bazooka':'BAZOOKA SUNRISE',
+  'bazooka sunrisre':'BAZOOKA SUNRISE','sunrisre bazooka':'BAZOOKA SUNRISE',
+  'בזוקה סאנרייז':'BAZOOKA SUNRISE','סאנרייז בזוקה':'BAZOOKA SUNRISE',
+  // QUEENS MARGARITA
+  'queens margarita':'QUEENS MARGARITA','margarita queens':'QUEENS MARGARITA',
+  'queen margarita':'QUEENS MARGARITA','margarita queen':'QUEENS MARGARITA',
+  'קווינס מרגריטה':'QUEENS MARGARITA','מרגריטה קווינס':'QUEENS MARGARITA',
+  // HONEY & ANIS
+  'honey & anis':'HONEY & ANIS','honey and anis':'HONEY & ANIS',
+  'anis & honey':'HONEY & ANIS','anis honey':'HONEY & ANIS','honey anis':'HONEY & ANIS',
+  'האני אניס':'HONEY & ANIS','דבש אניס':'HONEY & ANIS',
+  // GREEN GIN
+  'green gin':'GREEN GIN','gin green':'GREEN GIN',
+  'גרין גין':'GREEN GIN','גין גרין':'GREEN GIN','ירוק גין':'GREEN GIN',
+  // FRIDAY AT NOON
+  'friday at noon':'FRIDAY AT NOON','friday':'FRIDAY AT NOON',
+  'פריידי':'FRIDAY AT NOON','פריידי את נון':'FRIDAY AT NOON','פריידי אט נון':'FRIDAY AT NOON',
+  // CITROS SPICE
+  'citros spice':'CITROS SPICE','spice citros':'CITROS SPICE',
+  'citrus spice':'CITROS SPICE','spice citrus':'CITROS SPICE',
+  'ספייס סיטרוס':'CITROS SPICE','סיטרוס ספייס':'CITROS SPICE',
+  // MOJITO LYCHEE
+  'mojito lychee':'MOJITO LYCHEE','lychee mojito':'MOJITO LYCHEE',
+  'mojito':'MOJITO LYCHEE','lychee':'MOJITO LYCHEE',
+  'מוחיטו לייצי':'MOJITO LYCHEE','לייצי מוחיטו':'MOJITO LYCHEE',
+  "לייצ'י מוחיטו":'MOJITO LYCHEE',"מוחיטו לייצ'י":'MOJITO LYCHEE',
+  'מוחיטו':'MOJITO LYCHEE','ליצ׳י':'MOJITO LYCHEE',
+};
 const normalizeCocktail = (name) => {
   if (!name) return '';
-  const lower = name.toLowerCase().trim();
-  return COCKTAIL_TYPES.find(c => c.toLowerCase() === lower) || name.toUpperCase().trim();
+  const key = name.toLowerCase().trim();
+  return _COCKTAIL_MAP[key] || COCKTAIL_TYPES.find(c => c.toLowerCase() === key) || name.toUpperCase().trim();
 };
 const STATUSES = [
   { id: 'graphics',  label: 'קיבל הוראות גרפיקה', icon: '🎨' },
