@@ -2280,8 +2280,11 @@ function ProductionView({orders, productionQueue, onToggleQueue, onClearQueue}) 
   const selectedIds = useMemo(() => new Set(Object.keys(productionQueue||{})), [productionQueue]);
   const selectedOrders = useMemo(() => orders.filter(o => selectedIds.has(o.id)), [orders, selectedIds]);
 
+  const today = new Date().toISOString().split('T')[0];
+
   const availableOrders = useMemo(() => {
     return orders.filter(o => {
+      if (o.eventDate && o.eventDate < today) return false;
       if (!showCompleted && o.status === 'completed') return false;
       if (search && !o.customerName?.includes(search) && !(o.eventType||'').includes(search)) return false;
       return true;
