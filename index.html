@@ -405,7 +405,10 @@ const _COCKTAIL_MAP = {
   'האני אניס':'HONEY & ANIS','דבש אניס':'HONEY & ANIS',
   // GREEN GIN
   'green gin':'GREEN GIN','gin green':'GREEN GIN',
+  "g'in green":'GREEN GIN',"green g'in":'GREEN GIN',
   'גרין גין':'GREEN GIN','גין גרין':'GREEN GIN','ירוק גין':'GREEN GIN',
+  "ג'ין גרין":'GREEN GIN',"גרין ג'ין":'GREEN GIN',
+  'גרין גינ':'GREEN GIN','גין גרינ':'GREEN GIN',
   // FRIDAY AT NOON
   'friday at noon':'FRIDAY AT NOON','friday':'FRIDAY AT NOON',
   'פריידי':'FRIDAY AT NOON','פריידי את נון':'FRIDAY AT NOON','פריידי אט נון':'FRIDAY AT NOON',
@@ -418,12 +421,24 @@ const _COCKTAIL_MAP = {
   'mojito':'MOJITO LYCHEE','lychee':'MOJITO LYCHEE',
   'מוחיטו לייצי':'MOJITO LYCHEE','לייצי מוחיטו':'MOJITO LYCHEE',
   "לייצ'י מוחיטו":'MOJITO LYCHEE',"מוחיטו לייצ'י":'MOJITO LYCHEE',
-  'מוחיטו':'MOJITO LYCHEE','ליצ׳י':'MOJITO LYCHEE',
+  "ליצ'י מוחיטו":'MOJITO LYCHEE',"מוחיטו ליצ'י":'MOJITO LYCHEE',
+  'מוחיטו לייצ׳י':'MOJITO LYCHEE','לייצ׳י מוחיטו':'MOJITO LYCHEE',
+  'מוחיטו ליצ׳י':'MOJITO LYCHEE','ליצ׳י מוחיטו':'MOJITO LYCHEE',
+  'מוחיטו':'MOJITO LYCHEE','ליצ׳י':'MOJITO LYCHEE','לייצי':'MOJITO LYCHEE',
 };
 const normalizeCocktail = (name) => {
   if (!name) return '';
-  const key = name.toLowerCase().trim();
-  return _COCKTAIL_MAP[key] || COCKTAIL_TYPES.find(c => c.toLowerCase() === key) || name.toUpperCase().trim();
+  // מנקה רווחים כפולים + מאחד כל סוגי גרש/ציטוט לגרש רגיל
+  const clean = s => s.toLowerCase().trim().replace(/\s+/g,' ').replace(/[׳'''\u2018\u2019`]/g,"'");
+  const key = clean(name);
+  // ניסיון ישיר במפה
+  if (_COCKTAIL_MAP[key]) return _COCKTAIL_MAP[key];
+  // ניסיון ללא גרש בכלל (לכיסוי כל הוריאציות)
+  const keyNoApos = key.replace(/'/g,'');
+  const foundNoApos = Object.entries(_COCKTAIL_MAP).find(([k])=>k.replace(/'/g,'')===keyNoApos);
+  if (foundNoApos) return foundNoApos[1];
+  // התאמה לרשימה הקנונית
+  return COCKTAIL_TYPES.find(c => c.toLowerCase() === key) || name.toUpperCase().trim();
 };
 const STATUSES = [
   { id: 'graphics',  label: 'קיבל הוראות גרפיקה', icon: '🎨' },
