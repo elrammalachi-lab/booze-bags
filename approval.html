@@ -266,8 +266,9 @@ function ApprovalApp() {
               upd[`approvals/events/${req.orderId}/${Date.now()}`] = {type:'viewed',ts,note:'לקוח פתח את דף האישור'};
               D.ref().update(upd);
 
+              const hasPhone = !!(p.snapshot?.phone||'').replace(/\D/g,'').trim();
               if (req.status === 'approved') setPhase('already_approved');
-              else setPhase('verify_phone');
+              else setPhase(hasPhone ? 'verify_phone' : 'verify_otp');
             });
         });
       });
@@ -277,7 +278,8 @@ function ApprovalApp() {
   /* ── Verification ── */
   const doPhoneVerify = () => {
     if (!/^\d{4}$/.test(phone4)) { setP4Err('נא להזין 4 ספרות בלבד'); return; }
-    const stored = (request?.snapshot?.phone||'').replace(/\D/g,'').slice(-4);
+    const stored = (snap?.phone||'').replace(/\D/g,'').slice(-4);
+    if (!stored) { setP4Err(''); setPhase('verify_otp'); return; }  // no phone on record — skip step
     if (phone4 !== stored) { setP4Err('הספרות אינן תואמות את מספר הטלפון הרשום.'); return; }
     setP4Err('');
     setPhase('verify_otp');
