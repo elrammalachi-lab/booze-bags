@@ -473,30 +473,6 @@ function ApprovalApp() {
           </div>
         </div>
 
-        {/* Cocktails */}
-        {snap.cocktailTypes?.length>0 && (
-          <div className="card">
-            <div className="card-hdr"><span className="card-hdr-icon">🍸</span><span className="card-hdr-title">קוקטיילים</span></div>
-            <div className="card-body"><div style={{display:'flex',flexWrap:'wrap',gap:6}}>{snap.cocktailTypes.map(c=><span key={c} className="chip">{c}</span>)}</div></div>
-          </div>
-        )}
-
-        {/* Bag designs */}
-        {snap.bags?.length>0 && (
-          <div className="card" style={{overflow:'hidden'}}>
-            <Collapsible title={`פירוט עיצובים (${snap.bags.length} סוגים)`} icon="🎨">
-              {snap.bags.map((b,i)=>(
-                <div key={i} style={{padding:'10px 0',borderBottom:'1px solid var(--gray-100)'}}>
-                  <div style={{fontWeight:700,fontSize:13,marginBottom:4}}>עיצוב {b.bagNum||i+1} — {b.quantity||0} שקיות</div>
-                  {b.phraseA  && <div style={{fontSize:12,color:'var(--gray-500)'}}>מלל: {b.phraseA}</div>}
-                  {b.namesB   && <div style={{fontSize:12,color:'var(--gray-500)'}}>שמות: {b.namesB}</div>}
-                  {b.cocktailB&& <div style={{fontSize:12,color:'var(--primary)',fontWeight:600}}>קוקטייל: {b.cocktailB}</div>}
-                </div>
-              ))}
-            </Collapsible>
-          </div>
-        )}
-
         {/* Pricing */}
         <div className="card">
           <div className="card-hdr"><span className="card-hdr-icon">💰</span><span className="card-hdr-title">סיכום מחיר</span></div>
@@ -510,8 +486,6 @@ function ApprovalApp() {
             </>}
           </div>
         </div>
-
-        {snap.notes && <div className="card"><div className="card-hdr"><span className="card-hdr-icon">📝</span><span className="card-hdr-title">הערות</span></div><div className="card-body" style={{fontSize:14,color:'var(--gray-600)',lineHeight:1.7}}>{snap.notes}</div></div>}
 
         {/* Legal + Privacy — expandable, required */}
         <div className="card" style={{overflow:'hidden'}}>
@@ -534,7 +508,7 @@ function ApprovalApp() {
               קראתי ועברתי על <strong>פרטי ההזמנה</strong> המוצגים לעיל
             </CheckRow>
             <CheckRow checked={checks.correct} onChange={()=>setChecks(c=>({...c,correct:!c.correct}))} flash={flash.correct}>
-              <strong>הפרטים, הכמויות, כיוון העיצוב ותאריך האירוע</strong> נכונים ומאושרים על ידי
+              <strong>הפרטים, הכמות ותאריך האירוע</strong> נכונים ומאושרים על ידי
             </CheckRow>
             <CheckRow checked={checks.terms} onChange={()=>setChecks(c=>({...c,terms:!c.terms}))} flash={flash.terms}>
               קראתי ומסכים/ה ל<strong>תנאי ההזמנה, מדיניות הביטולים ומדיניות הייצור</strong>
