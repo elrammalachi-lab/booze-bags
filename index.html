@@ -1605,6 +1605,18 @@ function BagsView({orders, onUpdateBag, onAddBag}) {
     return result;
   }, [orders]);
 
+  // מספר סידורי גלובלי — אותו מיון כמו ייצוא המפעל
+  const seqMap = useMemo(() => {
+    const sorted = [...allBags].sort((a,b) => {
+      const dc=(a.eventDate||'').localeCompare(b.eventDate||''); if(dc) return dc;
+      const nc=(a.customerName||'').localeCompare(b.customerName||''); if(nc) return nc;
+      return (Number(a.bagNum)||0)-(Number(b.bagNum)||0);
+    });
+    const m = new Map();
+    sorted.forEach((b,i) => m.set(`${b.orderId}_${b._bagIdx}`, i+1));
+    return m;
+  }, [allBags]);
+
   // שקיות מסוננות לפי טווח תאריכים
   const dateFilteredBags = useMemo(() => {
     if (!filterFrom && !filterTo) return allBags;
@@ -1874,10 +1886,11 @@ document.addEventListener('keydown',function(e){if(e.key==='Escape')closeLb();})
         ) : (
           <div className="tbl-wrap">
             <table>
-              <thead><tr><th>תמונה</th><th>זוג</th><th>שקית</th><th>צד א — מלל</th><th>מספר תמונה</th><th>צד ב — שמות</th><th>קוקטייל</th><th>צריך תאריך?</th><th>כמות</th><th>תאריך אירוע</th><th></th></tr></thead>
+              <thead><tr><th>#</th><th>תמונה</th><th>זוג</th><th>שקית</th><th>צד א — מלל</th><th>מספר תמונה</th><th>צד ב — שמות</th><th>קוקטייל</th><th>צריך תאריך?</th><th>כמות</th><th>תאריך אירוע</th><th></th></tr></thead>
               <tbody>
                 {filtered.map((bag,idx)=>(
                   <tr key={idx} style={{background:idx%2===0?'#fff':'var(--gray-50)'}}>
+                    <td className="td-c" style={{fontWeight:700,color:'var(--primary)',fontSize:13}}>{seqMap.get(`${bag.orderId}_${bag._bagIdx}`)}</td>
                     <td style={{width:48,padding:'4px 8px'}}>
                       {bag.imageUrl
                         ? <img src={bag.imageUrl} alt="" style={{width:40,height:40,objectFit:'cover',borderRadius:6,border:'1.5px solid var(--gray-200)',cursor:'pointer',display:'block'}} onClick={()=>openImage(bag.imageUrl)} title="לחץ לצפייה מלאה"/>
