@@ -2,7 +2,7 @@
 
 ## Project type
 Static single-file PWA — one `index.html` file, no build step, no package.json.
-Deployed via GitHub Pages at: https://elrammalachi-lab.github.io/booze-bags/
+Deployed via GitHub Pages at: https://booze-bags.github.io/booze-bags/
 
 ## Dev server
 The preview MCP tools do not work reliably for this project.
