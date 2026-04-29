@@ -233,7 +233,7 @@ function ApprovalApp() {
   const [otp, setOtp]       = useState('');
   const [otpErr, setOtpErr] = useState('');
   const [otpTries, setTries]= useState(0);
-  const [checks, setChecks] = useState({details:false,correct:false,terms:false,privacy:false,mkt:false});
+  const [checks, setChecks] = useState({details:false,terms:false});
   const [flash, setFlash]   = useState({});
   const [checkErr, setCheckErr] = useState(false);
   const [showConfirm, setSC] = useState(false);
@@ -335,7 +335,7 @@ function ApprovalApp() {
 
   /* ── Approve ── */
   const handleApprove = () => {
-    const missing = ['details','correct','terms','privacy'].filter(k=>!checks[k]);
+    const missing = ['details','terms'].filter(k=>!checks[k]);
     if (missing.length) {
       const f={}; missing.forEach(k=>f[k]=true); setFlash(f);
       setCheckErr(true);
@@ -512,28 +512,19 @@ function ApprovalApp() {
 
         {/* Consent checkboxes */}
         <div className="card" id="chk-section">
-          <div className="card-hdr"><span className="card-hdr-icon">✅</span><span className="card-hdr-title">אישורים נדרשים לפני אישור ההזמנה</span></div>
+          <div className="card-hdr"><span className="card-hdr-icon">✅</span><span className="card-hdr-title">אישור וחתימה</span></div>
           <div className="card-body" style={{paddingBottom:8}}>
             {checkErr && (
               <div style={{background:'#fee2e2',border:'2px solid #f87171',borderRadius:10,padding:'12px 14px',marginBottom:14,display:'flex',alignItems:'center',gap:10}}>
                 <span style={{fontSize:22}}>⚠️</span>
-                <span style={{fontSize:14,fontWeight:700,color:'#991b1b'}}>יש לסמן את כל 4 האישורים לפני שניתן לאשר את ההזמנה</span>
+                <span style={{fontSize:14,fontWeight:700,color:'#991b1b'}}>יש לסמן את שני האישורים לפני שניתן לאשר את ההזמנה</span>
               </div>
             )}
             <CheckRow checked={checks.details} onChange={()=>{setChecks(c=>({...c,details:!c.details}));setCheckErr(false);}} flash={flash.details}>
-              קראתי ועברתי על <strong>פרטי ההזמנה</strong> המוצגים לעיל
-            </CheckRow>
-            <CheckRow checked={checks.correct} onChange={()=>{setChecks(c=>({...c,correct:!c.correct}));setCheckErr(false);}} flash={flash.correct}>
-              <strong>הפרטים, הכמות ותאריך האירוע</strong> נכונים ומאושרים על ידי
+              <strong>פרטי ההזמנה נכונים ומאושרים</strong> — שמות, תאריך האירוע, כמות השקיות והמחיר
             </CheckRow>
             <CheckRow checked={checks.terms} onChange={()=>{setChecks(c=>({...c,terms:!c.terms}));setCheckErr(false);}} flash={flash.terms}>
-              קראתי ומסכים/ה ל<strong>תנאי ההזמנה, מדיניות הביטולים ומדיניות הייצור</strong>
-            </CheckRow>
-            <CheckRow checked={checks.privacy} onChange={()=>{setChecks(c=>({...c,privacy:!c.privacy}));setCheckErr(false);}} flash={flash.privacy}>
-              קראתי ומסכים/ה ל<strong>הצהרת הפרטיות</strong> ולשימוש בפרטים לצורך ביצוע ההזמנה
-            </CheckRow>
-            <CheckRow checked={checks.mkt} onChange={()=>setChecks(c=>({...c,mkt:!c.mkt}))} optional>
-              מאשר/ת קבלת עדכונים ומבצעים מהצוות (אופציונלי)
+              <strong>קראתי ומסכים/ה לכל תנאי ההתקשרות</strong> — מדיניות ביטולים, פרטיות, זכויות יוצרים ואחריות
             </CheckRow>
           </div>
         </div>
