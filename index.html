@@ -2612,7 +2612,15 @@ table{width:100%;border-collapse:collapse;margin:12px 0;}td,th{border:1px solid 
 }
 
 // ── Production Queue View ──
-function ProductionView({orders, productionQueue, onToggleQueue, onClearQueue}) {
+function ProductionView({orders, productionQueue, onToggleQueue, onClearQueue, approvalRequests}) {
+
+  const approvalIcon = (orderId) => {
+    const reqs = Object.values(approvalRequests||{}).filter(r=>r.orderId===orderId);
+    if (reqs.some(r=>r.status==='approved'))                            return '✅';
+    if (reqs.some(r=>['pending','viewed','verified'].includes(r.status))) return '⏳';
+    if (reqs.some(r=>r.status==='rejected'))                            return '❌';
+    return '—';
+  };
   const [search, setSearch] = useState('');
   const [showCompleted, setShowCompleted] = useState(false);
 
@@ -2705,6 +2713,7 @@ function ProductionView({orders, productionQueue, onToggleQueue, onClearQueue}) 
                       {fmtDate(o.eventDate)}{o.eventType?` · ${o.eventType}`:''} · {bagTotal||o.bagCount||0} שק׳
                     </div>
                   </div>
+                  <span style={{fontSize:14}}>{approvalIcon(o.id)}</span>
                   <Badge status={o.status}/>
                 </div>
               );
@@ -2750,7 +2759,7 @@ function ProductionView({orders, productionQueue, onToggleQueue, onClearQueue}) 
                 <table>
                   <thead>
                     <tr>
-                      <th>לקוח</th><th>תאריך</th><th>סוג</th>
+                      <th>לקוח</th><th>תאריך</th><th>סוג</th><th>אישור</th>
                       {COCKTAIL_TYPES.map(c=><th key={c} style={{fontSize:10,maxWidth:72,whiteSpace:'normal',lineHeight:1.2}}>{c}</th>)}
                       <th>סה״כ שק׳</th><th>סה״כ ל׳</th>
                     </tr>
@@ -2767,6 +2776,7 @@ function ProductionView({orders, productionQueue, onToggleQueue, onClearQueue}) 
                           <td className="td-b">{order.customerName}</td>
                           <td>{fmtDate(order.eventDate)}</td>
                           <td style={{fontSize:12,color:'var(--gray-500)'}}>{order.eventType||'—'}</td>
+                          <td className="td-c" style={{fontSize:16}}>{approvalIcon(order.id)}</td>
                           {COCKTAIL_TYPES.map(c=>(
                             <td key={c} className="td-c" style={{fontWeight:pc[c]?700:400,color:pc[c]?'var(--primary)':'var(--gray-300)'}}>
                               {pc[c]||'—'}
@@ -2779,7 +2789,7 @@ function ProductionView({orders, productionQueue, onToggleQueue, onClearQueue}) 
                     })}
                     {/* Totals row */}
                     <tr style={{background:'#eef2ff',fontWeight:700,borderTop:'2px solid #c7d2fe'}}>
-                      <td colSpan={3} style={{fontWeight:700,color:'var(--primary)'}}>סה״כ</td>
+                      <td colSpan={4} style={{fontWeight:700,color:'var(--primary)'}}>סה״כ</td>
                       {COCKTAIL_TYPES.map(c=>{const t=cocktailTotals.find(([n])=>n===c)?.[1]?.bags||0;return<td key={c} className="td-c" style={{color:t?'var(--primary)':'var(--gray-300)'}}>{t||'—'}</td>;})}
                       <td className="td-c" style={{color:'var(--primary)'}}>{totalBags||'—'}</td>
                       <td className="td-c" style={{color:'var(--gray-500)'}}>{totalLiters}</td>
@@ -3873,7 +3883,7 @@ function App() {
         {tab==='monthly'   && <MonthlyStats orders={orders} transactions={transactions} settings={settings} onUpdateSettings={handleUpdateSettings} monthlyExpenses={monthlyExpenses} onAddMonthlyExpense={handleAddMonthlyExpense} onDeleteMonthlyExpense={handleDeleteMonthlyExpense} monthlySettings={monthlySettings} onUpdateMonthlySetting={handleUpdateMonthlySetting} onAddCostItem={handleAddMonthlyCostItem} onDeleteCostItem={handleDeleteMonthlyCostItem} fixedExpenses={fixedExpenses}/>}
         {tab==='calendar'  && <CalendarView orders={orders} calendarEvents={calendarEvents} reminders={reminders} emailjsSettings={settings.emailjs} onEdit={handleEdit} onAddCalEvent={handleAddCalEvent} onEditCalEvent={handleEditCalEvent} onDeleteCalEvent={handleDeleteCalEvent} onAddReminder={handleAddReminder} onDeleteReminder={handleDeleteReminder} onUpdateEmailjsSettings={handleUpdateEmailjsSettings}/>}
         {tab==='bags'      && <BagsView orders={orders} onUpdateBag={handleUpdateBag} onAddBag={handleAddBag}/>}
-        {tab==='production' && <ProductionView orders={orders} productionQueue={productionQueue} onToggleQueue={handleToggleProductionQueue} onClearQueue={handleClearProductionQueue}/>}
+        {tab==='production' && <ProductionView orders={orders} productionQueue={productionQueue} onToggleQueue={handleToggleProductionQueue} onClearQueue={handleClearProductionQueue} approvalRequests={approvalRequests}/>}
         {tab==='delivery'  && <DeliveryView orders={orders} onQuickUpdate={handleQuickUpdate}/>}
         {tab==='finance'   && <TransactionsView transactions={transactions} onAdd={handleAddTransaction} onDelete={handleDeleteTransaction} onUpdate={handleUpdateTransaction} fixedExpenses={fixedExpenses} onAddFixedExpense={handleAddFixedExpense} onDeleteFixedExpense={handleDeleteFixedExpense}/>}
         {tab==='docs'      && <DocsView orders={orders} onEdit={handleEdit}/>}
