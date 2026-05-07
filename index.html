@@ -2612,15 +2612,19 @@ table{width:100%;border-collapse:collapse;margin:12px 0;}td,th{border:1px solid 
 }
 
 // ── Production Queue View ──
-function ProductionView({orders, productionQueue, onToggleQueue, onClearQueue, approvalRequests}) {
+function ProductionView({orders, productionQueue, onToggleQueue, onClearQueue, approvalRequests, fillingData, onToggleFilling, onResetFilling}) {
 
   const approvalIcon = (orderId) => {
     const reqs = Object.values(approvalRequests||{}).filter(r=>r.orderId===orderId);
-    if (reqs.some(r=>r.status==='approved'))                            return '✅';
+    if (reqs.some(r=>r.status==='approved'))                              return '✅';
     if (reqs.some(r=>['pending','viewed','verified'].includes(r.status))) return '⏳';
-    if (reqs.some(r=>r.status==='rejected'))                            return '❌';
+    if (reqs.some(r=>r.status==='rejected'))                              return '❌';
     return '—';
   };
+
+  const fillKey   = (c) => c.replace(/[^a-zA-Z0-9\u05d0-\u05ea]/g, '_');
+  const isFilled  = (orderId, c) => !!(fillingData?.[orderId]?.[fillKey(c)]);
+  const toggleFill= (orderId, c) => onToggleFilling && onToggleFilling(orderId, c, !isFilled(orderId, c));
   const [search, setSearch] = useState('');
   const [showCompleted, setShowCompleted] = useState(false);
 
@@ -2664,6 +2668,13 @@ function ProductionView({orders, productionQueue, onToggleQueue, onClearQueue, a
     return bags.length===0;
   });
 
+  const filledOrdersCount = selectedOrders.filter(order => {
+    const obags=order.bags?(Array.isArray(order.bags)?order.bags:Object.values(order.bags)):[];
+    const opc={};obags.forEach(b=>{const k=normalizeCocktail(b.cocktailB);if(k)opc[k]=(opc[k]||0)+(Number(b.quantity)||0);});
+    const types=COCKTAIL_TYPES.filter(c=>opc[c]);
+    return types.length>0&&types.every(c=>isFilled(order.id,c));
+  }).length;
+
   return (
     <div style={{display:'flex',flexDirection:'column',gap:16}}>
 
@@ -2673,6 +2684,10 @@ function ProductionView({orders, productionQueue, onToggleQueue, onClearQueue, a
           <div className="stat-card"><div className="stat-val">{selectedOrders.length}</div><div className="stat-lbl">אירועים נבחרים</div></div>
           <div className="stat-card"><div className="stat-val">{totalBags.toLocaleString()}</div><div className="stat-lbl">סה״כ שקיות</div></div>
           <div className="stat-card"><div className="stat-val">{totalLiters} ל׳</div><div className="stat-lbl">סה״כ ליטר</div></div>
+          <div className="stat-card" style={{background:filledOrdersCount===selectedOrders.length&&selectedOrders.length>0?'#f0fdf4':undefined}}>
+            <div className="stat-val" style={{color:filledOrdersCount===selectedOrders.length&&selectedOrders.length>0?'#16a34a':undefined}}>{filledOrdersCount}/{selectedOrders.length}</div>
+            <div className="stat-lbl">הזמנות מולאו</div>
+          </div>
         </div>
       )}
 
@@ -2738,14 +2753,27 @@ function ProductionView({orders, productionQueue, onToggleQueue, onClearQueue, a
             <div className="card">
               <div className="card-hdr"><span className="card-title">🍸 סיכום קוקטיילים</span></div>
               <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fill,minmax(175px,1fr))',gap:10,padding:'12px 16px'}}>
-                {cocktailTotals.map(([name,s])=>{
+                {cocktailTotals.filter(([,s])=>s.bags>0).map(([name,s])=>{
                   const cidx=COCKTAIL_TYPES.indexOf(name);
                   const liters=(s.bags*ML_PER_BAG/1000).toFixed(1);
+                  const ordersWithThis=selectedOrders.filter(order=>{
+                    const b=order.bags?(Array.isArray(order.bags)?order.bags:Object.values(order.bags)):[];
+                    const p={};b.forEach(bg=>{const k=normalizeCocktail(bg.cocktailB);if(k)p[k]=(p[k]||0)+(Number(bg.quantity)||0);});
+                    return (p[name]||0)>0;
+                  });
+                  const filledCount=ordersWithThis.filter(o=>isFilled(o.id,name)).length;
+                  const allFilled=ordersWithThis.length>0&&filledCount===ordersWithThis.length;
                   return (
-                    <div key={name} style={{background:s.bags>0?'var(--gray-50)':'#fafafa',border:`1px solid ${s.bags>0?'var(--gray-200)':'var(--gray-100)'}`,borderRadius:10,padding:'12px 14px',opacity:s.bags>0?1:0.4}}>
+                    <div key={name} style={{background:allFilled?'#f0fdf4':'var(--gray-50)',border:`1px solid ${allFilled?'#86efac':'var(--gray-200)'}`,borderRadius:10,padding:'12px 14px',transition:'all 0.2s'}}>
                       <span className={`chip chip-${cidx>=0?cidx%7:0}`}>{name}</span>
                       <div style={{fontSize:16,fontWeight:700,color:'var(--gray-800)',marginTop:8}}>{s.bags.toLocaleString()} שק׳</div>
-                      <div style={{fontSize:12,color:'var(--gray-500)'}}>{liters} ליטר</div>
+                      <div style={{fontSize:12,color:'var(--gray-500)',marginBottom:6}}>{liters} ליטר</div>
+                      <div style={{display:'flex',justifyContent:'space-between',fontSize:11,color:allFilled?'#16a34a':'var(--gray-400)',marginBottom:3}}>
+                        <span>{allFilled?'✅ הושלם':`${filledCount}/${ordersWithThis.length} מולאו`}</span>
+                      </div>
+                      <div style={{height:5,borderRadius:3,background:'var(--gray-200)',overflow:'hidden'}}>
+                        <div style={{height:'100%',width:`${ordersWithThis.length?filledCount/ordersWithThis.length*100:0}%`,background:allFilled?'#22c55e':'var(--primary)',borderRadius:3,transition:'width 0.3s'}}/>
+                      </div>
                     </div>
                   );
                 })}
@@ -2754,14 +2782,20 @@ function ProductionView({orders, productionQueue, onToggleQueue, onClearQueue, a
 
             {/* Per-order table */}
             <div className="card">
-              <div className="card-hdr"><span className="card-title">📦 פירוט לפי הזמנה</span></div>
+              <div className="card-hdr">
+                <span className="card-title">📦 פירוט לפי הזמנה</span>
+                <span style={{fontSize:11,color:'var(--gray-400)',fontWeight:400,marginRight:8}}>לחץ על תא קוקטייל לסימון מילוי</span>
+                {Object.keys(fillingData||{}).length>0 && (
+                  <button className="btn btn-sm btn-outline" style={{marginRight:'auto',fontSize:11,color:'#dc2626',borderColor:'#fca5a5'}} onClick={onResetFilling}>🔄 אפס מילוי</button>
+                )}
+              </div>
               <div className="tbl-wrap">
                 <table>
                   <thead>
                     <tr>
                       <th>לקוח</th><th>תאריך</th><th>סוג</th><th>אישור</th>
                       {COCKTAIL_TYPES.map(c=><th key={c} style={{fontSize:10,maxWidth:72,whiteSpace:'normal',lineHeight:1.2}}>{c}</th>)}
-                      <th>סה״כ שק׳</th><th>סה״כ ל׳</th>
+                      <th>סה״כ שק׳</th><th>סה״כ ל׳</th><th>מילוי</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -2771,19 +2805,38 @@ function ProductionView({orders, productionQueue, onToggleQueue, onClearQueue, a
                       bags.forEach(b=>{const k=normalizeCocktail(b.cocktailB);if(k)pc[k]=(pc[k]||0)+(Number(b.quantity)||0);});
                       const rowTotal=Object.values(pc).reduce((s,v)=>s+v,0)||order.bagCount||0;
                       const rowLiters=(rowTotal*ML_PER_BAG/1000).toFixed(1);
+                      const orderTypes=COCKTAIL_TYPES.filter(c=>pc[c]);
+                      const orderFilledCount=orderTypes.filter(c=>isFilled(order.id,c)).length;
+                      const orderAllFilled=orderTypes.length>0&&orderFilledCount===orderTypes.length;
                       return (
-                        <tr key={order.id}>
+                        <tr key={order.id} style={{background:orderAllFilled?'#f0fdf4':undefined}}>
                           <td className="td-b">{order.customerName}</td>
                           <td>{fmtDate(order.eventDate)}</td>
                           <td style={{fontSize:12,color:'var(--gray-500)'}}>{order.eventType||'—'}</td>
                           <td className="td-c" style={{fontSize:16}}>{approvalIcon(order.id)}</td>
-                          {COCKTAIL_TYPES.map(c=>(
-                            <td key={c} className="td-c" style={{fontWeight:pc[c]?700:400,color:pc[c]?'var(--primary)':'var(--gray-300)'}}>
-                              {pc[c]||'—'}
-                            </td>
-                          ))}
+                          {COCKTAIL_TYPES.map(c=>{
+                            const filled=pc[c]&&isFilled(order.id,c);
+                            return (
+                              <td key={c} className="td-c"
+                                onClick={pc[c]?()=>toggleFill(order.id,c):undefined}
+                                title={pc[c]?`${c} — לחץ לסימון מילוי`:undefined}
+                                style={{
+                                  fontWeight:pc[c]?700:400,
+                                  color:filled?'#16a34a':pc[c]?'var(--primary)':'var(--gray-300)',
+                                  background:filled?'#dcfce7':undefined,
+                                  cursor:pc[c]?'pointer':'default',
+                                  transition:'all 0.15s',
+                                  userSelect:'none',
+                                }}>
+                                {pc[c]?(filled?`✓ ${pc[c]}`:pc[c]):'—'}
+                              </td>
+                            );
+                          })}
                           <td className="td-c" style={{fontWeight:700}}>{rowTotal||'—'}</td>
                           <td className="td-c" style={{color:'var(--gray-500)'}}>{rowLiters}</td>
+                          <td className="td-c" style={{fontWeight:600,fontSize:11,whiteSpace:'nowrap',color:orderAllFilled?'#16a34a':orderFilledCount>0?'var(--primary)':'var(--gray-300)'}}>
+                            {orderTypes.length>0?(orderAllFilled?'✅ הושלם':`${orderFilledCount}/${orderTypes.length}`):'—'}
+                          </td>
                         </tr>
                       );
                     })}
@@ -2793,6 +2846,9 @@ function ProductionView({orders, productionQueue, onToggleQueue, onClearQueue, a
                       {COCKTAIL_TYPES.map(c=>{const t=cocktailTotals.find(([n])=>n===c)?.[1]?.bags||0;return<td key={c} className="td-c" style={{color:t?'var(--primary)':'var(--gray-300)'}}>{t||'—'}</td>;})}
                       <td className="td-c" style={{color:'var(--primary)'}}>{totalBags||'—'}</td>
                       <td className="td-c" style={{color:'var(--gray-500)'}}>{totalLiters}</td>
+                      <td className="td-c" style={{color:'var(--primary)',fontSize:11,fontWeight:700}}>
+                        {filledOrdersCount>0?`${filledOrdersCount}/${selectedOrders.length}`:'—'}
+                      </td>
                     </tr>
                   </tbody>
                 </table>
@@ -3500,6 +3556,7 @@ function App() {
   const [calendarEvents, setCalendarEvents] = useState([]);
   const [reminders, setReminders] = useState([]);
   const [productionQueue, setProductionQueue] = useState({});
+  const [fillingData,     setFillingData]     = useState({});
   const [approvalRequests, setApprovalRequests] = useState({});
   const [approvalEvents,   setApprovalEvents]   = useState({});
   const [showApproval,     setShowApproval]      = useState(false);
@@ -3566,6 +3623,9 @@ function App() {
 
     const pqRef = db.ref('productionQueue');
     pqRef.on('value', snap => setProductionQueue(snap.val() || {}));
+
+    const fillRef = db.ref('productionFilling');
+    fillRef.on('value', snap => setFillingData(snap.val() || {}));
 
     const arRef = db.ref('approvals/requests');
     arRef.on('value', snap => setApprovalRequests(snap.val() || {}));
@@ -3737,6 +3797,16 @@ function App() {
     if (inQueue) db.ref('productionQueue').child(orderId).set(true);
     else db.ref('productionQueue').child(orderId).remove();
   };
+  const handleToggleFilling = (orderId, cocktail, val) => {
+    if (!db) return;
+    const key = cocktail.replace(/[^a-zA-Z0-9\u05d0-\u05ea]/g, '_');
+    if (val) db.ref(`productionFilling/${orderId}/${key}`).set(true);
+    else     db.ref(`productionFilling/${orderId}/${key}`).remove();
+  };
+  const handleResetFilling = () => {
+    if (!db) return;
+    if (window.confirm('לאפס את כל סימוני המילוי?')) db.ref('productionFilling').remove();
+  };
   const handleClearProductionQueue = () => {
     if (!db) return;
     if (window.confirm('לנקות את כל הבחירות?')) db.ref('productionQueue').remove();
@@ -3883,7 +3953,7 @@ function App() {
         {tab==='monthly'   && <MonthlyStats orders={orders} transactions={transactions} settings={settings} onUpdateSettings={handleUpdateSettings} monthlyExpenses={monthlyExpenses} onAddMonthlyExpense={handleAddMonthlyExpense} onDeleteMonthlyExpense={handleDeleteMonthlyExpense} monthlySettings={monthlySettings} onUpdateMonthlySetting={handleUpdateMonthlySetting} onAddCostItem={handleAddMonthlyCostItem} onDeleteCostItem={handleDeleteMonthlyCostItem} fixedExpenses={fixedExpenses}/>}
         {tab==='calendar'  && <CalendarView orders={orders} calendarEvents={calendarEvents} reminders={reminders} emailjsSettings={settings.emailjs} onEdit={handleEdit} onAddCalEvent={handleAddCalEvent} onEditCalEvent={handleEditCalEvent} onDeleteCalEvent={handleDeleteCalEvent} onAddReminder={handleAddReminder} onDeleteReminder={handleDeleteReminder} onUpdateEmailjsSettings={handleUpdateEmailjsSettings}/>}
         {tab==='bags'      && <BagsView orders={orders} onUpdateBag={handleUpdateBag} onAddBag={handleAddBag}/>}
-        {tab==='production' && <ProductionView orders={orders} productionQueue={productionQueue} onToggleQueue={handleToggleProductionQueue} onClearQueue={handleClearProductionQueue} approvalRequests={approvalRequests}/>}
+        {tab==='production' && <ProductionView orders={orders} productionQueue={productionQueue} onToggleQueue={handleToggleProductionQueue} onClearQueue={handleClearProductionQueue} approvalRequests={approvalRequests} fillingData={fillingData} onToggleFilling={handleToggleFilling} onResetFilling={handleResetFilling}/>}
         {tab==='delivery'  && <DeliveryView orders={orders} onQuickUpdate={handleQuickUpdate}/>}
         {tab==='finance'   && <TransactionsView transactions={transactions} onAdd={handleAddTransaction} onDelete={handleDeleteTransaction} onUpdate={handleUpdateTransaction} fixedExpenses={fixedExpenses} onAddFixedExpense={handleAddFixedExpense} onDeleteFixedExpense={handleDeleteFixedExpense}/>}
         {tab==='docs'      && <DocsView orders={orders} onEdit={handleEdit}/>}
